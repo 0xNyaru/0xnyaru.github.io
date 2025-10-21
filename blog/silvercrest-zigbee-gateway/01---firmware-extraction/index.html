@@ -1,0 +1,1045 @@
+<!DOCTYPE html><html lang="en-US" class="astro-37fxchfa" style="--highlightColor: hsl(var(--primary) / var(--un-text-opacity));"> <head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0, shrink-to-fit=no" name="viewport"><meta content="IE=edge" http-equiv="X-UA-Compatible"><title>[Silvercrest Smart Home] Firmware Extraction • Nyaru Security</title><link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png"><link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png"><link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png"><link rel="manifest" href="/favicon/site.webmanifest"><link rel="preload" href="/fonts/Satoshi-Variable.ttf" as="font" type="font/ttf" crossorigin><link rel="preload" href="/fonts/Satoshi-VariableItalic.ttf" as="font" type="font/ttf" crossorigin><link rel="canonical" href="https://0xnyaru.github.io/blog/silvercrest-zigbee-gateway/01---firmware-extraction"><meta content="[Silvercrest Smart Home] Firmware Extraction • Nyaru Security" name="title"><meta content="Introduction to hardware hacking: methods to extract firmware from Silvercrest Smart Home gateway via UART, SPI, and JTAG interfaces." name="description"><meta content="Nyaru" name="author"><meta content="" name="theme-color"><meta content="article" property="og:type"><meta content="[Silvercrest Smart Home] Firmware Extraction" property="og:title"><meta content="Introduction to hardware hacking: methods to extract firmware from Silvercrest Smart Home gateway via UART, SPI, and JTAG interfaces." property="og:description"><meta content="https://0xnyaru.github.io/blog/silvercrest-zigbee-gateway/01---firmware-extraction" property="og:url"><meta content="Nyaru Security" property="og:site_name"><meta content="en_US" property="og:locale"><meta content="https://0xnyaru.github.io/images/social-card.png" property="og:image"><meta content="1200" property="og:image:width"><meta content="630" property="og:image:height"><meta content="Nyaru" property="article:author"><meta content="2025-08-06T22:06:36.000Z" property="article:published_time"><meta content="summary_large_image" property="twitter:card"><meta content="https://0xnyaru.github.io/blog/silvercrest-zigbee-gateway/01---firmware-extraction" property="twitter:url"><meta content="[Silvercrest Smart Home] Firmware Extraction" property="twitter:title"><meta content="Introduction to hardware hacking: methods to extract firmware from Silvercrest Smart Home gateway via UART, SPI, and JTAG interfaces." property="twitter:description"><meta content="https://0xnyaru.github.io/images/social-card.png" property="twitter:image"><link href="/sitemap-index.xml" rel="sitemap"><link rel="alternate" type="application/rss+xml" title="Nyaru Security" href="https://0xnyaru.github.io/rss.xml"><meta content="Astro v5.12.3" name="generator"><link rel="stylesheet" href="/styles/global.css"><!-- <ClientRouter /> --><!-- <script is:inline>
+  const style = document.createElement('style')
+  style.textContent = `* { transition: none !important; }`
+  document.addEventListener('astro:after-swap', () => {
+    document.head.appendChild(style)
+    setTimeout(() => {
+      style.remove()
+    }, 100)
+  })
+</script> --><script type="module">console.log("%c Astro Theme Pure %c https://github.com/cworld1/astro-theme-pure/","color:#fff;background:linear-gradient(90deg,#448bff,#44e9ff);padding:5px 0;","color:#000;background:linear-gradient(90deg,#44e9ff,#ffffff);padding:5px 10px 5px 0px;");</script><script>
+  function simpleSetTheme() {
+    let theme = localStorage.getItem('theme')
+    // If undefined or 'system', get from system
+    if (!theme || theme === 'system') {
+      theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+    }
+    document.documentElement.classList.toggle('dark', theme === 'dark')
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute('content', theme === 'dark' ? '#0B0B10' : '#FCFCFD')
+  }
+  simpleSetTheme()
+  document.addEventListener('astro:page-load', () => simpleSetTheme())
+</script><script type="module" src="/_astro/ThemeProvider.astro_astro_type_script_index_0_lang.CW1wQWPM.js"></script><link rel="stylesheet" href="/_astro/index.DDD-8m-5.css">
+<link rel="stylesheet" href="/_astro/_id_.COXD5gRV.css">
+<link rel="stylesheet" href="/_astro/_id_.CYAsaA3e.css">
+<style>@media (min-width: 769px){#sidebar-shade:where(.astro-scuu7fyy){display:none!important}}@media (max-width: 769px){aside:where(.astro-scuu7fyy).show{display:block!important;opacity:1}@keyframes fade-in-side{0%{transform:translate(50%);opacity:0}to{transform:translate(0);opacity:1}}@keyframes fade-in{0%{opacity:0}to{opacity:1}}aside:where(.astro-scuu7fyy){animation:.3s fade-in-side!important;animation-fill-mode:forwards;right:0;top:0!important;height:100vh!important;min-width:40vw!important;max-width:75vw!important;border-top-right-radius:0!important;border-bottom-right-radius:0!important;padding-top:1.5rem!important;padding-bottom:1.5rem!important}#sidebar-shade:where(.astro-scuu7fyy){animation:.3s fade-in}}@media (max-width: 640px){aside:where(.astro-scuu7fyy){min-width:55vw!important}}
+header-component:where(.astro-zgz2aqyx){transition:padding .3s,transform .3s,margin-inline .3s,border .15s,background-color .15s;&.not-top{--un-border-opacity: 1;border-color:hsl(var(--border) / var(--un-border-opacity));--un-bg-opacity: 1;background-color:hsl(var(--background) / var(--un-bg-opacity));padding-left:.375rem;padding-right:.375rem;box-shadow:#fff 0 0,#18181b14 0 0 0 1px,#27272a14 0 10px 15px -3px,#27272a14 0 4px 6px -4px}&[data-show=false]:not(.expanded){transform:translateY(-5rem)}}@media (min-width: 800px){header-component:where(.astro-zgz2aqyx).not-top{margin-inline:8%}}.dark header-component:where(.astro-zgz2aqyx).not-top{background-color:hsl(var(--muted) / var(--un-bg-opacity))}@media (max-width: 640px){#headerExpandContent:where(.astro-zgz2aqyx){grid-template-rows:0fr;transition:opacity .3s,padding .3s,border-color .15s,grid-template-rows .3s}.expanded:where(.astro-zgz2aqyx) #headerExpandContent:where(.astro-zgz2aqyx){grid-template-rows:1fr}.expanded:where(.astro-zgz2aqyx).not-top #headerExpandContent:where(.astro-zgz2aqyx){box-shadow:#fff 0 0,#18181b14 0 0 0 1px,#27272a14 0 10px 15px -3px,#27272a14 0 4px 6px -4px}header-component:where(.astro-zgz2aqyx) #headerExpandContent:where(.astro-zgz2aqyx):after{box-sizing:content-box;content:"";position:absolute;inset-inline:calc(-1rem - 1px);bottom:0;top:-5rem;z-index:-1;transition:.3s;visibility:hidden;opacity:0;border-bottom:1px solid transparent}header-component:where(.astro-zgz2aqyx):not(.not-top) #headerExpandContent:where(.astro-zgz2aqyx):after{visibility:visible;bottom:-1rem;opacity:1;background-color:hsl(var(--muted) / var(--un-bg-opacity, 1));border-bottom-color:hsl(var(--border) / var(--un-border-opacity, 1))}}#toggleDarkMode:where(.astro-zgz2aqyx){&[data-theme=dark]{.system:where(.astro-zgz2aqyx){display:none}.dark:where(.astro-zgz2aqyx){display:block}}&[data-theme=light]{.system:where(.astro-zgz2aqyx){display:none}.light{display:block}}}@font-face{font-family:Satoshi;src:url(/fonts/Satoshi-Variable.ttf);font-style:normal;font-display:swap}@font-face{font-family:Satoshi;src:url(/fonts/Satoshi-VariableItalic.ttf);font-style:italic;font-display:swap}html{font-family:Satoshi,sans-serif}:root{--background: 210 33% 99%;--foreground: 240 10% 3.9%;--card: 0 0% 100%;--card-foreground: 240 10% 3.9%;--popover: 0 0% 100%;--popover-foreground: 240 10% 3.9%;--primary: 200 29% 45%;--primary-foreground: 0 0% 92.5%;--secondary: 240 4.8% 95.9%;--secondary-foreground: 240 5.9% 10%;--muted: 240 4.8% 95%;--muted-foreground: 240 3.8% 28.1%;--accent: 240 4.8% 95.9%;--accent-foreground: 240 5.9% 10%;--destructive: 0 72.22% 50.59%;--destructive-foreground: 0 0% 98%;--border: 240 5.9% 88%;--input: 240 5.9% 90%;--ring: 240 5.9% 10%;--radius: .5rem}.dark{--background: 240 20.54% 5.2%;--foreground: 0 0% 98%;--card: 240 10% 3.9%;--card-foreground: 0 0% 98%;--popover: 240 10% 3.9%;--popover-foreground: 0 0% 98%;--primary: 195 95% 85%;--primary-foreground: 240 3.7% 15.9%;--secondary: 240 3.7% 15.9%;--secondary-foreground: 0 0% 98%;--muted: 240 5.9% 12%;--muted-foreground: 240 5% 74.9%;--accent: 240 3.7% 15.9%;--accent-foreground: 0 0% 98%;--destructive: 0 62.8% 30.6%;--destructive-foreground: 0 0% 98%;--border: 240 3.7% 19.9%;--input: 240 3.7% 15.9%;--ring: 240 4.9% 83.9%}:root{--un-default-border-color: hsl(var(--border) / 1)}html.dark{color-scheme:dark}html{font-size:140%}a{transition:color .2s ease;&:hover{color:hsl(var(--primary) / var(--un-text-opacity, 1))}}header-component a:first-letter,h1:first-letter,h2:first-letter{color:#00fa9a}li::marker{color:#00fa9a!important}thead th:nth-child(2n){background-color:#00fa9ab2}thead th:nth-child(odd){background-color:#00fa9a77}tbody tr:nth-child(odd){background-color:hsl(var(--secondary))}.highlight{color:var(--highlightColor, hsl(var(--primary) / var(--un-text-opacity)))!important}.highlight-bg{background-color:var( --highlightColor, hsl(var(--primary) / var(--un-text-opacity)) )!important}
+.aside:where(.astro-kdde4gve)>.aside-container:where(.astro-kdde4gve){--un-bg-opacity: .07;&.aside-tip{--primary: 234 60% 60%}&.aside-caution{--primary: 41 90% 50%}&.aside-danger{--primary: 339 90% 60%}.aside-content{>:first-child{margin-top:0}>:last-child{margin-bottom:0}}}
+svg:where(.astro-hn7k2gay){color:var(--sl-icon-color);font-size:var(--sl-icon-size, 1em);width:1.5em;height:1.5em}
+.expand-content:where(.astro-5lfx4xea){grid-template-rows:0fr}.expanded:where(.astro-5lfx4xea) .expand-content:where(.astro-5lfx4xea){grid-template-rows:1fr}
+.sl-steps{--bullet-size: 1.75rem ;--bullet-margin: .375rem;list-style:none!important;counter-reset:steps-counter var(--sl-steps-start, 0);padding-inline-start:0!important}.sl-steps>li{counter-increment:steps-counter;position:relative;padding-inline-start:calc(var(--bullet-size) + 1rem);padding-bottom:1px;min-height:calc(var(--bullet-size) + var(--bullet-margin))}.sl-steps>li+li{margin-top:0}.sl-steps>li:before{content:counter(steps-counter);position:absolute;top:0;inset-inline-start:0;width:var(--bullet-size);height:var(--bullet-size);line-height:var(--bullet-size);font-size:.8125rem;font-weight:600;text-align:center;color:hsl(var(--foreground) / var(--un-text-opacity, 1));background-color:hsl(var(--primary-foreground) / var(--un-bg-opacity, 1));border-radius:99rem;box-shadow:inset 0 0 0 1px hsl(var(--border) / var(--un-border-opacity, 1))}.sl-steps>li:after{--guide-width: 1px;content:"";position:absolute;top:calc(var(--bullet-size) + var(--bullet-margin));bottom:var(--bullet-margin);inset-inline-start:calc((var(--bullet-size) - var(--guide-width)) / 2);width:var(--guide-width);background-color:hsl(var(--border) / var(--un-border-opacity, 1))}.sl-steps>li>:first-child{--lh: 1.75em ;--shift-y: calc(.5 * (var(--bullet-size) - var(--lh)));margin-top:0;transform:translateY(var(--shift-y));margin-bottom:var(--shift-y);color:hsl(var(--foreground) / var(--un-text-opacity, 1))}.sl-steps>li>:first-child:where(h1,h2,h3,h4,h5,h6){--lh: 1.2em }
+</style><script type="module" src="/_astro/page.V2R8AmkL.js"></script></head> <body class="flex justify-center bg-background text-foreground astro-37fxchfa" class="astro-scuu7fyy" style="--highlightColor: hsl(var(--primary) / var(--un-text-opacity));"> <div id="highlight-gradient" class="pointer-events-none absolute start-0 top-0 z-0 h-screen w-full opacity-25 astro-37fxchfa" style="background-image:linear-gradient(hsl(var(--primary) / var(--un-text-opacity)),transparent); --highlightColor: hsl(var(--primary) / var(--un-text-opacity));"></div> <div class="w-full max-w-[70rem] px-4 sm:px-7 lg:px-10 astro-37fxchfa" style="--highlightColor: hsl(var(--primary) / var(--un-text-opacity));"> <header-component class="group sticky top-4 z-30 md:z-50 mb-12 flex items-center justify-between rounded-xl border border-transparent max-sm:py-1 sm:rounded-2xl astro-zgz2aqyx"> <a class="z-30 text-xl font-semibold group-[.not-top]:ms-2 sm:group-[.not-top]:ms-3 astro-zgz2aqyx" style="transition:margin-inline 0.3s" href="/" aria-label="Brand">Nyaru Security</a> <div class="flex items-center gap-x-2 astro-zgz2aqyx">  <div id="headerExpandContent" class="end-0 start-0 top-12 grid border border-transparent group-[.not-top]:rounded-xl group-[.expanded]:opacity-100 dark:group-[.expanded.not-top]:bg-muted max-sm:absolute max-sm:opacity-0 max-sm:group-[.not-top]:border-border max-sm:group-[.expanded.not-top]:bg-background max-sm:group-[.not-top]:px-4 max-sm:group-[.not-top]:py-2 sm:grid-rows-1 astro-zgz2aqyx"> <div class="flex flex-col items-center justify-center overflow-hidden sm:flex-row astro-zgz2aqyx"> <a href="/blog" class="w-full flex-none grow py-2 text-right font-medium transition-none hover:text-primary sm:w-fit sm:px-3 astro-zgz2aqyx" aria-label="Nav menu item"> Blog </a><a href="/about" class="w-full flex-none grow py-2 text-right font-medium transition-none hover:text-primary sm:w-fit sm:px-3 astro-zgz2aqyx" aria-label="Nav menu item"> About </a> <div class="flex w-full grow flex-row justify-end gap-x-3 sm:w-fit sm:gap-x-5 astro-zgz2aqyx"> <a class="px-1 py-2 transition-none sm:px-2 astro-zgz2aqyx" href="/search" title="Search"> <span class="sr-only astro-zgz2aqyx">Search</span> <svg aria-hidden="true" class="size-5 astro-zgz2aqyx astro-hn7k2gay" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><g fill="none" fill-rule="evenodd"><path d="m12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.018-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"/><path fill="currentColor" d="M5 10a5 5 0 1 1 10 0a5 5 0 0 1-10 0m5-7a7 7 0 1 0 4.192 12.606l5.1 5.101a1 1 0 0 0 1.415-1.414l-5.1-5.1A7 7 0 0 0 10 3"/></g></svg>  </a> </div> </div> </div>  <div class="z-30 flex gap-x-4 group-[.not-top]:gap-x-2 astro-zgz2aqyx" style="transition:gap 0.3s"> <button id="toggleDarkMode" class="group/dark box-content size-5 rounded-md border p-1.5 transition-colors hover:bg-border sm:group-[.not-top]:rounded-xl astro-zgz2aqyx"> <span class="sr-only astro-zgz2aqyx">Dark Theme</span> <svg aria-hidden="true" class="system size-5 group-hover/dark:text-primary astro-zgz2aqyx astro-hn7k2gay" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><g fill="none" fill-rule="evenodd"><path d="m12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.018-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"/><path fill="currentColor" fill-rule="nonzero" d="M19 3a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2h-4v1h1a1 1 0 1 1 0 2H8a1 1 0 1 1 0-2h1v-1H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm-6 15h-2v1h2zm6-13H5v11h14z"/></g></svg>  <svg aria-hidden="true" class="light hidden size-5 group-hover/dark:text-primary astro-zgz2aqyx astro-hn7k2gay" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><g fill="none"><path d="m12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.018-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"/><path fill="currentColor" d="M12 19a1 1 0 0 1 1 1v1a1 1 0 1 1-2 0v-1a1 1 0 0 1 1-1m6.364-2.05l.707.707a1 1 0 0 1-1.414 1.414l-.707-.707a1 1 0 0 1 1.414-1.414m-12.728 0a1 1 0 0 1 1.497 1.32l-.083.094l-.707.707a1 1 0 0 1-1.497-1.32l.083-.094zM12 6a6 6 0 1 1 0 12a6 6 0 0 1 0-12m0 2a4 4 0 1 0 0 8a4 4 0 0 0 0-8m-8 3a1 1 0 0 1 .117 1.993L4 13H3a1 1 0 0 1-.117-1.993L3 11zm17 0a1 1 0 1 1 0 2h-1a1 1 0 1 1 0-2zM4.929 4.929a1 1 0 0 1 1.32-.083l.094.083l.707.707a1 1 0 0 1-1.32 1.497l-.094-.083l-.707-.707a1 1 0 0 1 0-1.414m14.142 0a1 1 0 0 1 0 1.414l-.707.707a1 1 0 1 1-1.414-1.414l.707-.707a1 1 0 0 1 1.414 0M12 2a1 1 0 0 1 1 1v1a1 1 0 1 1-2 0V3a1 1 0 0 1 1-1"/></g></svg>  <svg aria-hidden="true" class="dark hidden size-5 group-hover/dark:text-primary astro-zgz2aqyx astro-hn7k2gay" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><g fill="none" fill-rule="evenodd"><path d="m12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.018-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"/><path fill="currentColor" d="M12.477 4.546a1.01 1.01 0 0 1 1.097-1.409A9 9 0 0 1 12 21c-4.434 0-8.118-3.206-8.863-7.426a1.01 1.01 0 0 1 1.409-1.097a6 6 0 0 0 7.931-7.931m2.404 1.072a8 8 0 0 1-9.263 9.263A7.002 7.002 0 0 0 19 12.001a7 7 0 0 0-4.12-6.383ZM5.565 7.716l.064.14a3.26 3.26 0 0 0 1.237 1.363l.1.059a.068.068 0 0 1 0 .118l-.1.058a3.26 3.26 0 0 0-1.237 1.364l-.064.14a.071.071 0 0 1-.13 0l-.064-.14a3.26 3.26 0 0 0-1.237-1.364l-.1-.058a.068.068 0 0 1 0-.118l.1-.059A3.26 3.26 0 0 0 5.37 7.855l.064-.14a.071.071 0 0 1 .13 0Zm2.832-4.859c.04-.09.166-.09.206 0l.102.222a5.2 5.2 0 0 0 1.97 2.172l.157.092a.108.108 0 0 1 0 .189l-.158.092a5.2 5.2 0 0 0-2.07 2.394a.113.113 0 0 1-.207 0l-.102-.222a5.2 5.2 0 0 0-1.97-2.172l-.158-.092a.108.108 0 0 1 0-.189l.158-.092a5.2 5.2 0 0 0 1.97-2.172z"/></g></svg>  </button> <button id="toggleMenu" class="rounded-md border p-1.5 transition-colors hover:bg-border sm:hidden sm:group-[.not-top]:rounded-xl astro-zgz2aqyx"> <span class="sr-only astro-zgz2aqyx">Menu</span> <svg aria-hidden="true" class="size-5 astro-zgz2aqyx astro-hn7k2gay" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><g fill="none"><path d="m12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.018-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"/><path fill="currentColor" d="M20 18a1 1 0 0 1 .117 1.993L20 20H4a1 1 0 0 1-.117-1.993L4 18zm0-7a1 1 0 1 1 0 2H4a1 1 0 1 1 0-2zm0-7a1 1 0 1 1 0 2H4a1 1 0 0 1 0-2z"/></g></svg>  </button> </div> </div> </header-component>  <script>
+  const toggleDarkModeElement = document.getElementById('toggleDarkMode')
+  if (toggleDarkModeElement) {
+    toggleDarkModeElement.dataset.theme = localStorage.getItem('theme') || 'system'
+  }
+</script> <script type="module" src="/_astro/Header.astro_astro_type_script_index_0_lang.52pHqpSo.js"></script>   <a class="group inline-flex items-center gap-x-1 rounded-lg bg-muted border px-2 py-1 text-sm text-muted-foreground transition-all hover:bg-primary-foreground no-underline astro-scuu7fyy" href="/blog" data-astro-prefetch="true">  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="stroke-muted-foreground group-hover:stroke-primary"> <line x1="19" y1="12" x2="5" y2="12" class="translate-x-3 scale-x-0 transition-all duration-300 ease-in-out group-hover:translate-x-0 group-hover:scale-x-100"></line> <polyline points="12 19 5 12 12 5" class="translate-x-1 transition-all duration-300 ease-in-out group-hover:translate-x-0"></polyline> </svg>   <p class="my-0">Back</p>     </a> <main class="mt-6 items-start gap-x-10 md:flex astro-scuu7fyy">  <aside class="animate top-20 min-w-48 basis-60 overflow-y-scroll max-md:hidden z-40 fixed md:sticky md:order-2 lg:shrink-0 max-md:border max-md:px-4 max-md:py-3 max-md:bg-muted max-md:rounded-xl astro-scuu7fyy" style="height:calc(100vh - 7rem);" id="sidebar"> <toc-heading class=" astro-mmcgqrmu" slot="sidebar"> <h2 class="font-semibold astro-mmcgqrmu">TABLE OF CONTENTS</h2> <ul class="mt-4 text-card-foreground astro-mmcgqrmu"> <li> <div class="relative"> <span class="absolute top-[5%] w-[2px] rounded transition-colors duration-300 [&.highlight-bg]:bg-primary [&.is-read]:bg-input"></span> <a aria-label="Scroll to section: 1. Introduction" class="toc-item line-clamp-2 px-3 py-1 ms-2 text-foreground/75 transition-all hover:text-foreground [&#38;.highlight]:font-medium [&#38;.highlight]:text-primary [&#38;.is-read]:text-input [&#38;.highlight-bg-translucent]:bg-muted" href="#1-introduction">1. Introduction</a> </div> <ul> <li> <div class="relative"> <span class="absolute top-[5%] w-[2px] rounded transition-colors duration-300 [&.highlight-bg]:bg-primary [&.is-read]:bg-input"></span> <a aria-label="Scroll to section: 1.1 What is firmware?" class="toc-item line-clamp-2 px-3 py-1 ms-2 text-foreground/75 transition-all hover:text-foreground [&#38;.highlight]:font-medium [&#38;.highlight]:text-primary [&#38;.is-read]:text-input [&#38;.highlight-bg-translucent]:bg-muted ps-7" href="#11-what-is-firmware">1.1 What is firmware?</a> </div>  </li><li> <div class="relative"> <span class="absolute top-[5%] w-[2px] rounded transition-colors duration-300 [&.highlight-bg]:bg-primary [&.is-read]:bg-input"></span> <a aria-label="Scroll to section: 1.2 Why extract and analyze it?" class="toc-item line-clamp-2 px-3 py-1 ms-2 text-foreground/75 transition-all hover:text-foreground [&#38;.highlight]:font-medium [&#38;.highlight]:text-primary [&#38;.is-read]:text-input [&#38;.highlight-bg-translucent]:bg-muted ps-7" href="#12-why-extract-and-analyze-it">1.2 Why extract and analyze it?</a> </div>  </li> </ul> </li><li> <div class="relative"> <span class="absolute top-[5%] w-[2px] rounded transition-colors duration-300 [&.highlight-bg]:bg-primary [&.is-read]:bg-input"></span> <a aria-label="Scroll to section: 2. Identifying and Analyzing UART / JTAG Ports" class="toc-item line-clamp-2 px-3 py-1 ms-2 text-foreground/75 transition-all hover:text-foreground [&#38;.highlight]:font-medium [&#38;.highlight]:text-primary [&#38;.is-read]:text-input [&#38;.highlight-bg-translucent]:bg-muted" href="#2-identifying-and-analyzing-uart--jtag-ports">2. Identifying and Analyzing UART / JTAG Ports</a> </div> <ul> <li> <div class="relative"> <span class="absolute top-[5%] w-[2px] rounded transition-colors duration-300 [&.highlight-bg]:bg-primary [&.is-read]:bg-input"></span> <a aria-label="Scroll to section: 2.1 Resistance Testing" class="toc-item line-clamp-2 px-3 py-1 ms-2 text-foreground/75 transition-all hover:text-foreground [&#38;.highlight]:font-medium [&#38;.highlight]:text-primary [&#38;.is-read]:text-input [&#38;.highlight-bg-translucent]:bg-muted ps-7" href="#21-resistance-testing">2.1 Resistance Testing</a> </div>  </li><li> <div class="relative"> <span class="absolute top-[5%] w-[2px] rounded transition-colors duration-300 [&.highlight-bg]:bg-primary [&.is-read]:bg-input"></span> <a aria-label="Scroll to section: 2.2 Voltage Testing" class="toc-item line-clamp-2 px-3 py-1 ms-2 text-foreground/75 transition-all hover:text-foreground [&#38;.highlight]:font-medium [&#38;.highlight]:text-primary [&#38;.is-read]:text-input [&#38;.highlight-bg-translucent]:bg-muted ps-7" href="#22-voltage-testing">2.2 Voltage Testing</a> </div>  </li><li> <div class="relative"> <span class="absolute top-[5%] w-[2px] rounded transition-colors duration-300 [&.highlight-bg]:bg-primary [&.is-read]:bg-input"></span> <a aria-label="Scroll to section: 2.3 Logic Analyzer" class="toc-item line-clamp-2 px-3 py-1 ms-2 text-foreground/75 transition-all hover:text-foreground [&#38;.highlight]:font-medium [&#38;.highlight]:text-primary [&#38;.is-read]:text-input [&#38;.highlight-bg-translucent]:bg-muted ps-7" href="#23-logic-analyzer">2.3 Logic Analyzer</a> </div>  </li> </ul> </li><li> <div class="relative"> <span class="absolute top-[5%] w-[2px] rounded transition-colors duration-300 [&.highlight-bg]:bg-primary [&.is-read]:bg-input"></span> <a aria-label="Scroll to section: 3. Initial UART Communication Tests" class="toc-item line-clamp-2 px-3 py-1 ms-2 text-foreground/75 transition-all hover:text-foreground [&#38;.highlight]:font-medium [&#38;.highlight]:text-primary [&#38;.is-read]:text-input [&#38;.highlight-bg-translucent]:bg-muted" href="#3-initial-uart-communication-tests">3. Initial UART Communication Tests</a> </div>  </li><li> <div class="relative"> <span class="absolute top-[5%] w-[2px] rounded transition-colors duration-300 [&.highlight-bg]:bg-primary [&.is-read]:bg-input"></span> <a aria-label="Scroll to section: 4. UART Message Analysis" class="toc-item line-clamp-2 px-3 py-1 ms-2 text-foreground/75 transition-all hover:text-foreground [&#38;.highlight]:font-medium [&#38;.highlight]:text-primary [&#38;.is-read]:text-input [&#38;.highlight-bg-translucent]:bg-muted" href="#4-uart-message-analysis">4. UART Message Analysis</a> </div> <ul> <li> <div class="relative"> <span class="absolute top-[5%] w-[2px] rounded transition-colors duration-300 [&.highlight-bg]:bg-primary [&.is-read]:bg-input"></span> <a aria-label="Scroll to section: 4.1 Detected Hardware Information" class="toc-item line-clamp-2 px-3 py-1 ms-2 text-foreground/75 transition-all hover:text-foreground [&#38;.highlight]:font-medium [&#38;.highlight]:text-primary [&#38;.is-read]:text-input [&#38;.highlight-bg-translucent]:bg-muted ps-7" href="#41-detected-hardware-information">4.1 Detected Hardware Information</a> </div>  </li><li> <div class="relative"> <span class="absolute top-[5%] w-[2px] rounded transition-colors duration-300 [&.highlight-bg]:bg-primary [&.is-read]:bg-input"></span> <a aria-label="Scroll to section: 4.2 Memory Technology Device (MTD) Partition Structure" class="toc-item line-clamp-2 px-3 py-1 ms-2 text-foreground/75 transition-all hover:text-foreground [&#38;.highlight]:font-medium [&#38;.highlight]:text-primary [&#38;.is-read]:text-input [&#38;.highlight-bg-translucent]:bg-muted ps-7" href="#42-memory-technology-device-mtd-partition-structure">4.2 Memory Technology Device (MTD) Partition Structure</a> </div>  </li><li> <div class="relative"> <span class="absolute top-[5%] w-[2px] rounded transition-colors duration-300 [&.highlight-bg]:bg-primary [&.is-read]:bg-input"></span> <a aria-label="Scroll to section: 4.3 Operating System Details" class="toc-item line-clamp-2 px-3 py-1 ms-2 text-foreground/75 transition-all hover:text-foreground [&#38;.highlight]:font-medium [&#38;.highlight]:text-primary [&#38;.is-read]:text-input [&#38;.highlight-bg-translucent]:bg-muted ps-7" href="#43-operating-system-details">4.3 Operating System Details</a> </div>  </li><li> <div class="relative"> <span class="absolute top-[5%] w-[2px] rounded transition-colors duration-300 [&.highlight-bg]:bg-primary [&.is-read]:bg-input"></span> <a aria-label="Scroll to section: 4.4 Tuya-Specific Indicators" class="toc-item line-clamp-2 px-3 py-1 ms-2 text-foreground/75 transition-all hover:text-foreground [&#38;.highlight]:font-medium [&#38;.highlight]:text-primary [&#38;.is-read]:text-input [&#38;.highlight-bg-translucent]:bg-muted ps-7" href="#44-tuya-specific-indicators">4.4 Tuya-Specific Indicators</a> </div>  </li> </ul> </li><li> <div class="relative"> <span class="absolute top-[5%] w-[2px] rounded transition-colors duration-300 [&.highlight-bg]:bg-primary [&.is-read]:bg-input"></span> <a aria-label="Scroll to section: 5. Preparing for Firmware Extraction" class="toc-item line-clamp-2 px-3 py-1 ms-2 text-foreground/75 transition-all hover:text-foreground [&#38;.highlight]:font-medium [&#38;.highlight]:text-primary [&#38;.is-read]:text-input [&#38;.highlight-bg-translucent]:bg-muted" href="#5-preparing-for-firmware-extraction">5. Preparing for Firmware Extraction</a> </div> <ul> <li> <div class="relative"> <span class="absolute top-[5%] w-[2px] rounded transition-colors duration-300 [&.highlight-bg]:bg-primary [&.is-read]:bg-input"></span> <a aria-label="Scroll to section: 5.1 Recap of Collected Information" class="toc-item line-clamp-2 px-3 py-1 ms-2 text-foreground/75 transition-all hover:text-foreground [&#38;.highlight]:font-medium [&#38;.highlight]:text-primary [&#38;.is-read]:text-input [&#38;.highlight-bg-translucent]:bg-muted ps-7" href="#51-recap-of-collected-information">5.1 Recap of Collected Information</a> </div>  </li><li> <div class="relative"> <span class="absolute top-[5%] w-[2px] rounded transition-colors duration-300 [&.highlight-bg]:bg-primary [&.is-read]:bg-input"></span> <a aria-label="Scroll to section: 5.2 Possible Extraction Methods" class="toc-item line-clamp-2 px-3 py-1 ms-2 text-foreground/75 transition-all hover:text-foreground [&#38;.highlight]:font-medium [&#38;.highlight]:text-primary [&#38;.is-read]:text-input [&#38;.highlight-bg-translucent]:bg-muted ps-7" href="#52-possible-extraction-methods">5.2 Possible Extraction Methods</a> </div> <ul> <li> <div class="relative"> <span class="absolute top-[5%] w-[2px] rounded transition-colors duration-300 [&.highlight-bg]:bg-primary [&.is-read]:bg-input"></span> <a aria-label="Scroll to section: 5.2.1 Extraction via UART / Serial Console (Bootloader)" class="toc-item line-clamp-2 px-3 py-1 ms-2 text-foreground/75 transition-all hover:text-foreground [&#38;.highlight]:font-medium [&#38;.highlight]:text-primary [&#38;.is-read]:text-input [&#38;.highlight-bg-translucent]:bg-muted ps-7" href="#521-extraction-via-uart--serial-console-bootloader">5.2.1 Extraction via UART / Serial Console (Bootloader)</a> </div>  </li><li> <div class="relative"> <span class="absolute top-[5%] w-[2px] rounded transition-colors duration-300 [&.highlight-bg]:bg-primary [&.is-read]:bg-input"></span> <a aria-label="Scroll to section: 5.2.2 For the Silvercrest gateway, this method is applicable.Extraction via JTAG / SWD" class="toc-item line-clamp-2 px-3 py-1 ms-2 text-foreground/75 transition-all hover:text-foreground [&#38;.highlight]:font-medium [&#38;.highlight]:text-primary [&#38;.is-read]:text-input [&#38;.highlight-bg-translucent]:bg-muted ps-7" href="#522-for-the-silvercrest-gateway-this-method-is-applicableextraction-via-jtag--swd">5.2.2 For the Silvercrest gateway, this method is applicable.Extraction via JTAG / SWD</a> </div>  </li><li> <div class="relative"> <span class="absolute top-[5%] w-[2px] rounded transition-colors duration-300 [&.highlight-bg]:bg-primary [&.is-read]:bg-input"></span> <a aria-label="Scroll to section: 5.2.3 Physical Extraction via SPI Flash" class="toc-item line-clamp-2 px-3 py-1 ms-2 text-foreground/75 transition-all hover:text-foreground [&#38;.highlight]:font-medium [&#38;.highlight]:text-primary [&#38;.is-read]:text-input [&#38;.highlight-bg-translucent]:bg-muted ps-7" href="#523-physical-extraction-via-spi-flash">5.2.3 Physical Extraction via SPI Flash</a> </div>  </li> </ul> </li><li> <div class="relative"> <span class="absolute top-[5%] w-[2px] rounded transition-colors duration-300 [&.highlight-bg]:bg-primary [&.is-read]:bg-input"></span> <a aria-label="Scroll to section: 5.3 Extraction implementation" class="toc-item line-clamp-2 px-3 py-1 ms-2 text-foreground/75 transition-all hover:text-foreground [&#38;.highlight]:font-medium [&#38;.highlight]:text-primary [&#38;.is-read]:text-input [&#38;.highlight-bg-translucent]:bg-muted ps-7" href="#53-extraction-implementation">5.3 Extraction implementation</a> </div> <ul> <li> <div class="relative"> <span class="absolute top-[5%] w-[2px] rounded transition-colors duration-300 [&.highlight-bg]:bg-primary [&.is-read]:bg-input"></span> <a aria-label="Scroll to section: 5.3.1 Extraction Via UART" class="toc-item line-clamp-2 px-3 py-1 ms-2 text-foreground/75 transition-all hover:text-foreground [&#38;.highlight]:font-medium [&#38;.highlight]:text-primary [&#38;.is-read]:text-input [&#38;.highlight-bg-translucent]:bg-muted ps-7" href="#531-extraction-via-uart">5.3.1 Extraction Via UART</a> </div> <ul> <li> <div class="relative"> <span class="absolute top-[5%] w-[2px] rounded transition-colors duration-300 [&.highlight-bg]:bg-primary [&.is-read]:bg-input"></span> <a aria-label="Scroll to section: 5.3.1.1 Hardware Setup" class="toc-item line-clamp-2 px-3 py-1 ms-2 text-foreground/75 transition-all hover:text-foreground [&#38;.highlight]:font-medium [&#38;.highlight]:text-primary [&#38;.is-read]:text-input [&#38;.highlight-bg-translucent]:bg-muted ps-7" href="#5311-hardware-setup">5.3.1.1 Hardware Setup</a> </div>  </li><li> <div class="relative"> <span class="absolute top-[5%] w-[2px] rounded transition-colors duration-300 [&.highlight-bg]:bg-primary [&.is-read]:bg-input"></span> <a aria-label="Scroll to section: 5.3.1.2 Boot Access and Data Dump" class="toc-item line-clamp-2 px-3 py-1 ms-2 text-foreground/75 transition-all hover:text-foreground [&#38;.highlight]:font-medium [&#38;.highlight]:text-primary [&#38;.is-read]:text-input [&#38;.highlight-bg-translucent]:bg-muted ps-7" href="#5312-boot-access-and-data-dump">5.3.1.2 Boot Access and Data Dump</a> </div>  </li> </ul> </li><li> <div class="relative"> <span class="absolute top-[5%] w-[2px] rounded transition-colors duration-300 [&.highlight-bg]:bg-primary [&.is-read]:bg-input"></span> <a aria-label="Scroll to section: 5.3.2 Extraction via SPI" class="toc-item line-clamp-2 px-3 py-1 ms-2 text-foreground/75 transition-all hover:text-foreground [&#38;.highlight]:font-medium [&#38;.highlight]:text-primary [&#38;.is-read]:text-input [&#38;.highlight-bg-translucent]:bg-muted ps-7" href="#532-extraction-via-spi">5.3.2 Extraction via SPI</a> </div> <ul> <li> <div class="relative"> <span class="absolute top-[5%] w-[2px] rounded transition-colors duration-300 [&.highlight-bg]:bg-primary [&.is-read]:bg-input"></span> <a aria-label="Scroll to section: 5.3.1 Hardware Setup" class="toc-item line-clamp-2 px-3 py-1 ms-2 text-foreground/75 transition-all hover:text-foreground [&#38;.highlight]:font-medium [&#38;.highlight]:text-primary [&#38;.is-read]:text-input [&#38;.highlight-bg-translucent]:bg-muted ps-7" href="#531-hardware-setup">5.3.1 Hardware Setup</a> </div>  </li><li> <div class="relative"> <span class="absolute top-[5%] w-[2px] rounded transition-colors duration-300 [&.highlight-bg]:bg-primary [&.is-read]:bg-input"></span> <a aria-label="Scroll to section: 5.3.2 Wiring and Precautions" class="toc-item line-clamp-2 px-3 py-1 ms-2 text-foreground/75 transition-all hover:text-foreground [&#38;.highlight]:font-medium [&#38;.highlight]:text-primary [&#38;.is-read]:text-input [&#38;.highlight-bg-translucent]:bg-muted ps-7" href="#532-wiring-and-precautions">5.3.2 Wiring and Precautions</a> </div>  </li> </ul> </li> </ul> </li> </ul> </li><li> <div class="relative"> <span class="absolute top-[5%] w-[2px] rounded transition-colors duration-300 [&.highlight-bg]:bg-primary [&.is-read]:bg-input"></span> <a aria-label="Scroll to section: 6. Conclusion" class="toc-item line-clamp-2 px-3 py-1 ms-2 text-foreground/75 transition-all hover:text-foreground [&#38;.highlight]:font-medium [&#38;.highlight]:text-primary [&#38;.is-read]:text-input [&#38;.highlight-bg-translucent]:bg-muted" href="#6-conclusion">6. Conclusion</a> </div>  </li><li> <div class="relative"> <span class="absolute top-[5%] w-[2px] rounded transition-colors duration-300 [&.highlight-bg]:bg-primary [&.is-read]:bg-input"></span> <a aria-label="Scroll to section: Ressources" class="toc-item line-clamp-2 px-3 py-1 ms-2 text-foreground/75 transition-all hover:text-foreground [&#38;.highlight]:font-medium [&#38;.highlight]:text-primary [&#38;.is-read]:text-input [&#38;.highlight-bg-translucent]:bg-muted" href="#ressources">Ressources</a> </div>  </li> </ul> </toc-heading> <script type="module">class l extends HTMLElement{constructor(){super(),this.headings=[],this.tocLinks=[],this.headingProgress={},this.updatePositionAndStyle=()=>{const t=window.innerHeight,r=window.scrollY-(document.querySelector("#content")?.offsetTop||0),o=(document.querySelector("#content")?.offsetHeight||0)+127;this.headings.forEach((e,n)=>{const h=this.headings[n+1]?.offsetTop||o,s=[e.offsetTop-r,h-r-e.offsetHeight],i=(t-s[0])/(s[1]-s[0]);this.headingProgress[e.id]={inView:s[0]<t&&s[1]>0,progress:Math.max(0,Math.min(1,i))}}),this.tocLinks.forEach(({element:e,progressBar:n,slug:h},s)=>{const{inView:i,progress:g}=this.headingProgress[h];this.headingProgress[h]&&(e.classList.toggle("highlight",i),e.classList.toggle("highlight-bg-translucent",i),e.classList.toggle("rounded-t-2xl",i&&(s==0||!this.headingProgress[this.tocLinks[s-1]?.slug].inView)),e.classList.toggle("rounded-b-2xl",i&&(s==this.tocLinks.length-1||!this.headingProgress[this.tocLinks[s+1]?.slug].inView)),n.classList.toggle("is-read",!i&&g==1),n.classList.toggle("highlight-bg",i),n.style.setProperty("height",`${g*90}%`))})},this.headings=Array.from(document.querySelectorAll("article h2, article h3, article h4, article h5, article h6")),this.tocLinks=Array.from(this.querySelectorAll('a[href^="#"]')).map(t=>({element:t,progressBar:t.previousElementSibling,slug:(t.getAttribute("href")||"").substring(1)}))}connectedCallback(){this.tocLinks.forEach(t=>{t.element.addEventListener("click",r=>{r.preventDefault();const o=this.headings.find(e=>e.id===t.slug);o?(history.pushState(null,o.textContent||"",t.element.getAttribute("href")),o.scrollIntoView({behavior:"smooth"})):console.warn(`No heading found for slug: ${t.slug}`)})}),setInterval(this.updatePositionAndStyle,100),window.addEventListener("scroll",this.updatePositionAndStyle)}}customElements.define("toc-heading",l);</script>  </aside> <div id="sidebar-shade" class="fixed top-0 start-0 w-full h-full astro-scuu7fyy" style="display:none;background-color:#00000091;z-index:31"></div> <article class="min-w-0 grow astro-scuu7fyy">  <div id="content-header" class="animate astro-scuu7fyy"> <div class="article-info max-lg:mx-auto astro-qr7qsrsa"> <div class="flex flex-wrap gap-x-4 gap-y-2 text-xs leading-6 text-muted-foreground astro-qr7qsrsa">  <div class="flex items-center gap-1 astro-qr7qsrsa"> <svg aria-hidden="true" class="size-5 astro-qr7qsrsa astro-hn7k2gay" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><g fill="none" fill-rule="evenodd"><path d="m12.594 23.258l-.012.002l-.071.035l-.02.004l-.014-.004l-.071-.036q-.016-.004-.024.006l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.016-.018m.264-.113l-.014.002l-.184.093l-.01.01l-.003.011l.018.43l.005.012l.008.008l.201.092q.019.005.029-.008l.004-.014l-.034-.614q-.005-.019-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.003-.011l.018-.43l-.003-.012l-.01-.01z"/><path fill="currentColor" d="M16 3a1 1 0 0 1 1 1v1h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2V4a1 1 0 0 1 2 0v1h6V4a1 1 0 0 1 1-1M8 7H5v2h14V7h-3zm-3 4v8h14v-8zm2 2a1 1 0 0 1 1-1h.01a1 1 0 1 1 0 2H8a1 1 0 0 1-1-1m1 2a1 1 0 1 0 0 2h.01a1 1 0 1 0 0-2zm3-2a1 1 0 0 1 1-1h.01a1 1 0 1 1 0 2H12a1 1 0 0 1-1-1m1 2a1 1 0 1 0 0 2h.01a1 1 0 1 0 0-2zm3-2a1 1 0 0 1 1-1h.01a1 1 0 1 1 0 2H16a1 1 0 0 1-1-1m1 2a1 1 0 1 0 0 2h.01a1 1 0 1 0 0-2z"/></g></svg>  <span class="text-muted-foreground font-mono font-sans astro-qr7qsrsa"> <time datetime="2025-08-06T22:06:36.000Z"> Aug 6, 2025 </time> </span>  </div>  <div class="flex items-center gap-1 astro-qr7qsrsa"> <svg aria-hidden="true" class="size-5 astro-qr7qsrsa astro-hn7k2gay" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><g fill="none"><path d="m12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.018-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"/><path fill="currentColor" d="M12 2c5.523 0 10 4.477 10 10s-4.477 10-10 10S2 17.523 2 12S6.477 2 12 2m0 2a8 8 0 1 0 0 16a8 8 0 0 0 0-16m0 2a1 1 0 0 1 .993.883L13 7v4.586l2.707 2.707a1 1 0 0 1-1.32 1.497l-.094-.083l-3-3a1 1 0 0 1-.284-.576L11 12V7a1 1 0 0 1 1-1"/></g></svg>  15 min read </div>  <span class="flex items-center gap-1 astro-qr7qsrsa"> <svg aria-hidden="true" class="size-5 astro-qr7qsrsa astro-hn7k2gay" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><g fill="none" fill-rule="evenodd"><path d="m12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.018-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"/><path fill="currentColor" d="M10.124 3.008a1 1 0 0 1 .868 1.116L10.508 8h3.984l.516-4.124a1 1 0 1 1 1.984.248L16.508 8H20a1 1 0 1 1 0 2h-3.742l-.5 4H19.5a1 1 0 1 1 0 2h-3.992l-.516 4.124a1 1 0 1 1-1.984-.248L13.492 16H9.508l-.516 4.124a1 1 0 1 1-1.984-.248L7.492 16H4.5a1 1 0 1 1 0-2h3.242l.5-4H5a1 1 0 0 1 0-2h3.492l.516-4.124a1 1 0 0 1 1.116-.868M13.742 14l.5-4h-3.984l-.5 4z"/></g></svg>  <div class="astro-qr7qsrsa"> <a aria-label="View more blogs with the tag hardware" class="hover:underline hover:underline-offset-4 astro-qr7qsrsa" data-pagefind-filter="tag" href="/tags/hardware"> hardware </a> / </div><div class="astro-qr7qsrsa"> <a aria-label="View more blogs with the tag reverse" class="hover:underline hover:underline-offset-4 astro-qr7qsrsa" data-pagefind-filter="tag" href="/tags/reverse"> reverse </a> / </div><div class="astro-qr7qsrsa"> <a aria-label="View more blogs with the tag iot" class="hover:underline hover:underline-offset-4 astro-qr7qsrsa" data-pagefind-filter="tag" href="/tags/iot"> iot </a> / </div><div class="astro-qr7qsrsa"> <a aria-label="View more blogs with the tag audit" class="hover:underline hover:underline-offset-4 astro-qr7qsrsa" data-pagefind-filter="tag" href="/tags/audit"> audit </a> / </div><div class="astro-qr7qsrsa"> <a aria-label="View more blogs with the tag firmware extraction" class="hover:underline hover:underline-offset-4 astro-qr7qsrsa" data-pagefind-filter="tag" href="/tags/firmware extraction"> firmware extraction </a> / </div><div class="astro-qr7qsrsa"> <a aria-label="View more blogs with the tag uart" class="hover:underline hover:underline-offset-4 astro-qr7qsrsa" data-pagefind-filter="tag" href="/tags/uart"> uart </a> / </div><div class="astro-qr7qsrsa"> <a aria-label="View more blogs with the tag spi" class="hover:underline hover:underline-offset-4 astro-qr7qsrsa" data-pagefind-filter="tag" href="/tags/spi"> spi </a> / </div><div class="astro-qr7qsrsa"> <a aria-label="View more blogs with the tag hydrabus" class="hover:underline hover:underline-offset-4 astro-qr7qsrsa" data-pagefind-filter="tag" href="/tags/hydrabus"> hydrabus </a>  </div> </span> </div> <h1 class="mt-4 text-2xl font-medium sm:mb-2 sm:mt-6 sm:text-3xl astro-qr7qsrsa"> [Silvercrest Smart Home] Firmware Extraction </h1> <div class="mt-3 italic astro-qr7qsrsa"> <blockquote class="text-sm text-muted-foreground astro-qr7qsrsa"><q class="astro-qr7qsrsa">Introduction to hardware hacking: methods to extract firmware from Silvercrest Smart Home gateway via UART, SPI, and JTAG interfaces.</q></blockquote>  </div> </div>  <div class="mt-4 w-1/2 border-t max-lg:mx-auto sm:mt-6 sm:w-1/3 astro-qr7qsrsa"></div> <script type="module">const o=window.innerHeight,s=o/9,i=o*2/9,l=o*3/9,e=document.getElementById("blurImage");e&&window.addEventListener("scroll",()=>{const t=window.scrollY;t>=l?e.style.opacity="0.15":t>=i?e.style.opacity="0.3":t>=s&&(e.style.opacity="0.45")});</script>  </div>  <div id="content" class="max-w-none animate mt-8 md:min-w-[45ch] overflow-x-hidden prose text-base text-muted-foreground astro-scuu7fyy">   <h2 id="1-introduction">1. Introduction<a class="anchor" href="#1-introduction">#</a></h2>
+<p>In the <a href="/blog/silvercrest-zigbee-gateway/00---hardware-analysis-of-the-gateway">Hardware Analysis of the Gateway</a> section, identifying the components revealed the presence of debug ports that could allow firmware extraction.</p>
+<p>This section is dedicated to identifying those debug ports, determining the protocol used, and how to connect to them properly. The gathered information will later be reused to extract the firmware stored in the RTL8196E SoC.</p>
+<h3 id="11-what-is-firmware">1.1 What is firmware?<a class="anchor" href="#11-what-is-firmware">#</a></h3>
+<p>Before going further, what exactly is firmware, and why is it important to retrieve it?</p>
+<p>Firmware is the embedded software running on an electronic device (IoT, router, smartwatch, etc.). It’s typically <strong>hardware-specific</strong>, unlike general-purpose Linux or Android systems, and it’s optimized for memory usage, power consumption, and performance.</p>
+<p>It controls how the device behaves: it includes the operating system, drivers, network protocols, boot routines, and sometimes embedded secrets like keys or certificates. It’s stored as a binary file on a memory chip (e.g., SPI Flash) and loaded by the main processor (SoC, MCU…) at boot.</p>
+<h3 id="12-why-extract-and-analyze-it">1.2 Why extract and analyze it?<a class="anchor" href="#12-why-extract-and-analyze-it">#</a></h3>
+<p>Accessing the firmware provides complete visibility into what the device is actually doing—far beyond what the user interface exposes. Analyzing it can help identify the technologies in use (OS, libraries, protocols), how network connections are handled, and whether debugging or admin interfaces (e.g., Telnet, UART, root access via SSH) are left open.</p>
+<h2 id="2-identifying-and-analyzing-uart--jtag-ports">2. Identifying and Analyzing UART / JTAG Ports<a class="anchor" href="#2-identifying-and-analyzing-uart--jtag-ports">#</a></h2>
+<p>One of the main challenges in identifying debug ports is the lack of standardization.
+JTAG ports, for example, are notoriously inconsistent, as can be seen on <a href="http://www.jtagtest.com/pinouts/" rel="nofollow noopener noreferrer" target="_blank">jtagtest<span> ↗</span></a>. None of the reference layouts match the connector found on this board.</p>
+<p>That suggests JTAG might not be used here.</p>
+<p>In contrast, images of UART ports look very similar to what’s present on this device.</p>
+<p>To confirm, a multimeter is used in three modes:</p>
+<ul>
+<li>Continuity</li>
+<li>Voltage</li>
+<li>Resistance</li>
+</ul>
+<p>It can be helpful to fill out a table like this one to record and compare results:</p>
+<center>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>PIN</th><th>R<sub>GND</sub></th><th>R<sub>VCC</sub></th><th>V</th><th>Comments</th></tr></thead><tbody><tr><td>1</td><td></td><td></td><td></td><td></td></tr><tr><td>2</td><td></td><td></td><td></td><td></td></tr><tr><td>3</td><td></td><td></td><td></td><td></td></tr><tr><td>4</td><td></td><td></td><td></td><td></td></tr><tr><td>5</td><td></td><td></td><td></td><td></td></tr></tbody></table></center>
+<p>Legend:</p>
+<ul>
+<li>R<sub>GND</sub>: Multimeter COM probe is on ground</li>
+<li>R<sub>VCC</sub>: Red probe is on VCC; COM is used to test the pins</li>
+<li>V: Voltage measurement while the board is powered</li>
+</ul>
+<p>Even though the Silvercrest board has its pins labeled on the back side, we’ll rely on multimeter testing here—as many boards don’t label their debug ports at all.</p>
+<h3 id="21-resistance-testing">2.1 Resistance Testing<a class="anchor" href="#21-resistance-testing">#</a></h3>
+<p>One advantage of this method is that the board doesn’t need to be powered, so there’s no electrical risk.
+To measure resistance, set the multimeter to ohm mode:</p>
+<img src="/_astro/multimeter_ohm_mode.DYPB65jy_5E393.webp" srcset="/_astro/multimeter_ohm_mode.DYPB65jy_5E393.webp 300w, /_astro/multimeter_ohm_mode.DYPB65jy_Z1DN2W8.webp 600w" alt="Ohm mode" loading="lazy" decoding="async" fetchpriority="auto" sizes="(min-width: 300px) 300px, 100vw" style="--fit: cover; --pos: center;" data-astro-image="constrained" width="300" height="538" class="zoomable">
+<p>To probe ground:</p>
+<ul>
+<li>Identify a GND pin from the datasheet of any known component</li>
+<li>Or use a grounded metal part, like the shielding of an Ethernet port.</li>
+</ul>
+<p>On the SoC, pin 17 is GND, but due to its tiny pitch, it’s easier to use the Zigbee module:</p>
+<img src="/_astro/zigbee_pin.C7PW2zXl_2rw2hh.webp" srcset="/_astro/zigbee_pin.C7PW2zXl_2rw2hh.webp 400w" alt="Pin zigbee" loading="lazy" decoding="async" fetchpriority="auto" sizes="(min-width: 400px) 400px, 100vw" style="--fit: cover; --pos: center;" data-astro-image="constrained" width="400" height="415" class="zoomable">
+<aside aria-label="CAUTION" class="aside my-3 overflow-hidden rounded-xl border astro-kdde4gve"> <div class="aside-container border-l-8 border-primary px-4 py-3 bg-primary aside-caution astro-kdde4gve"> <p class="not-prose flex items-center gap-x-2 font-medium text-primary astro-kdde4gve" aria-hidden="true"> <svg aria-hidden="true" class="astro-kdde4gve astro-hn7k2gay" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><g fill="none"><path d="m12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.018-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"/><path fill="currentColor" d="m13.299 3.148l8.634 14.954a1.5 1.5 0 0 1-1.299 2.25H3.366a1.5 1.5 0 0 1-1.299-2.25l8.634-14.954c.577-1 2.02-1 2.598 0M12 4.898L4.232 18.352h15.536zM12 15a1 1 0 1 1 0 2a1 1 0 0 1 0-2m0-7a1 1 0 0 1 1 1v4a1 1 0 1 1-2 0V9a1 1 0 0 1 1-1"/></g></svg>  CAUTION </p> <div class="aside-content mt-2 astro-kdde4gve"> <p>I made a mistake here by misreading the diagram: it showed the module from the back, not top view.
+So ground was actually on the right when looking from the top, not the left. That mistake led to
+reversed readings (negative values), suggesting VCC and GND were swapped.</p> </div> </div> </aside> 
+<p>After realizing the error, I used the Ethernet port shield as a known ground reference.</p>
+<p>Updated measurements:</p>
+<center>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>PIN</th><th>R<sub>GND</sub></th><th>R<sub>VCC</sub></th><th>V</th><th>Comments</th></tr></thead><tbody><tr><td>1</td><td>∞ N/A</td><td>N/A</td><td></td><td></td></tr><tr><td>2</td><td>∞ N/A</td><td>N/A</td><td></td><td></td></tr><tr><td>3</td><td>37.3kΩ</td><td>10kΩ</td><td></td><td>RX ?</td></tr><tr><td>4</td><td>170kΩ</td><td>∞Ω</td><td></td><td>TX ?</td></tr><tr><td>5</td><td>0Ω</td><td>23.6Ω</td><td></td><td>GND ?</td></tr><tr><td>6</td><td>27kΩ</td><td>0kΩ</td><td></td><td>VCC ?</td></tr></tbody></table></center>
+<p>Initial hypothesis:</p>
+<ul>
+<li>3: RX</li>
+<li>4: TX</li>
+<li>5: GND</li>
+<li>6: VCC</li>
+</ul>
+<h3 id="22-voltage-testing">2.2 Voltage Testing<a class="anchor" href="#22-voltage-testing">#</a></h3>
+<p>For this, the board must be powered and set the multimeter to voltage mode:</p>
+<img src="/_astro/multimeter_volt_mode.Cot6L-cd_GjnqF.webp" srcset="/_astro/multimeter_volt_mode.Cot6L-cd_GjnqF.webp 300w" alt="Volt mode" loading="lazy" decoding="async" fetchpriority="auto" sizes="(min-width: 300px) 300px, 100vw" style="--fit: cover; --pos: center;" data-astro-image="constrained" width="300" height="539" class="zoomable">
+<p>Then place the COM probe on ground, and the red probe on each pin as shown:</p>
+<img src="/_astro/volt_measure.DsdPUrPs_Z2rh9OG.webp" srcset="/_astro/volt_measure.DsdPUrPs_Z2rh9OG.webp 500w, /_astro/volt_measure.DsdPUrPs_19dJXK.webp 640w, /_astro/volt_measure.DsdPUrPs_Jx1Kj.webp 750w, /_astro/volt_measure.DsdPUrPs_Z1zA8F2.webp 828w" alt="Volt measure" loading="lazy" decoding="async" fetchpriority="auto" sizes="(min-width: 500px) 500px, 100vw" style="--fit: cover; --pos: center;" data-astro-image="constrained" width="500" height="372" class="zoomable">
+<p>Updated table with voltages:</p>
+<center>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>PIN</th><th>R<sub>GND</sub></th><th>R<sub>VCC</sub></th><th>V</th><th>Comments</th></tr></thead><tbody><tr><td>1</td><td>∞ N/A</td><td>N/A</td><td>0v</td><td></td></tr><tr><td>2</td><td>∞ N/A</td><td>N/A</td><td>3.28v</td><td></td></tr><tr><td>3</td><td>37.3kΩ</td><td>10kΩ</td><td>2.93v</td><td>RX ?</td></tr><tr><td>4</td><td>170Ω</td><td>∞Ω</td><td>3.3v</td><td>TX ?</td></tr><tr><td>5</td><td>0Ω</td><td>23.6Ω</td><td>0v</td><td>GND</td></tr><tr><td>6</td><td>27kΩ</td><td>0kΩ</td><td>3.3v</td><td>VCC</td></tr></tbody></table></center>
+<p>The last step is to measure activity during boot. This requires disconnecting and reconnecting power while probing the pins. Pin 4 showed voltage fluctuations between 1.7 V and 3.3 V during boot—typical behavior of a TX line sending boot logs over UART.</p>
+<p>For more on this method, see the video by <a href="https://www.youtube.com/watch?v=6_Q663YkyXE&#x26;list=PLoFdAHrZtKkhcd9k8ZcR4th8Q8PNOx7iU&#x26;index=2" rel="nofollow noopener noreferrer" target="_blank">Make Me Hack<span> ↗</span></a>.</p>
+<p>Continuity mode is not discussed here, as RX was not conclusively identified. For a complete guide on that, see: : <a href="https://www.hardbreak.wiki/hardware-hacking/interface-interaction/uart/uart-from-start-to-finish" rel="nofollow noopener noreferrer" target="_blank">HardBreak – UART from Start to Finish<span> ↗</span></a>.</p>
+<h3 id="23-logic-analyzer">2.3 Logic Analyzer<a class="anchor" href="#23-logic-analyzer">#</a></h3>
+<p>Once candidate pins are identified, a <strong>logic analyzer</strong> can be used to visually confirm UART signals, especially TX activity.</p>
+<p>You don’t need expensive gear like a Saleae. A cheap Chinese clone based on the <strong>CY7C68013A</strong> chip works perfectly for 3.3V UART:</p>
+<img src="/_astro/usb_analyser_logic.BVNTNMa6_Z20fr8c.webp" srcset="/_astro/usb_analyser_logic.BVNTNMa6_Z20fr8c.webp 300w" alt="Analyser logic usb" loading="lazy" decoding="async" fetchpriority="auto" sizes="(min-width: 300px) 300px, 100vw" style="--fit: cover; --pos: center;" data-astro-image="constrained" width="300" height="157" class="zoomable">
+<p>To capture UART data:</p>
+
+<ol role="list" class="sl-steps">
+<li>
+<p>Connect Dupont wires</p>
+<p>Suspected <strong>TX</strong> pin</p>
+<p>Suspected <strong>RX</strong> pin (optional if the objective is solely observe<strong>TX</strong>)</p>
+<p>Optional but recommended: common <strong>GND</strong></p>
+</li>
+<li>
+<p>Launch PulseView</p>
+</li>
+<li>
+<p>Hit “Run” <strong>just before powering the board</strong></p>
+</li>
+</ol>
+<aside aria-label="TIP" class="aside my-3 overflow-hidden rounded-xl border astro-kdde4gve"> <div class="aside-container border-l-8 border-primary px-4 py-3 bg-primary aside-tip astro-kdde4gve"> <p class="not-prose flex items-center gap-x-2 font-medium text-primary astro-kdde4gve" aria-hidden="true"> <svg aria-hidden="true" class="astro-kdde4gve astro-hn7k2gay" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><g fill="none"><path d="m12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.018-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"/><path fill="currentColor" d="M13 20a1 1 0 1 1 0 2h-2a1 1 0 1 1 0-2zM12 2c4.41 0 8 3.543 8 7.933c0 3.006-1.522 5.196-2.78 6.494l-.284.283l-.27.252l-.252.22l-.33.27l-.328.244c-.196.138-.34.329-.466.535l-.145.251l-.141.252c-.24.412-.518.766-1.111.766h-3.786c-.593 0-.871-.354-1.11-.766l-.213-.378c-.145-.253-.305-.494-.54-.66l-.232-.171l-.199-.155l-.227-.188l-.252-.22l-.27-.252l-.285-.283C5.522 15.129 4 12.939 4 9.933C4 5.543 7.59 2 12 2m0 2C8.677 4 6 6.665 6 9.933c0 2.624 1.533 4.494 2.593 5.471l.245.218l.22.182l.27.208l.072.052c.315.222.549.531.762.854l.373.582h2.93l.373-.582c.213-.323.447-.632.762-.854l.243-.182l.206-.165l.233-.2C16.342 14.576 18 12.662 18 9.933C18 6.665 15.323 4 12 4m.293 2.293a1 1 0 0 1 1.497 1.32l-.083.094L12.414 9l1.286 1.286c.364.364.392.937.084 1.333l-.084.095l-1.993 1.993a1 1 0 0 1-1.497-1.32l.083-.094L11.586 11L10.3 9.714a1.01 1.01 0 0 1-.084-1.333l.084-.095z"/></g></svg>  TIP </p> <div class="aside-content mt-2 astro-kdde4gve"> <p>Note the correspondences between the analyzer labels and those in PulseView.</p><ul><li>CH1 → D0</li><li>CH2 → D1</li><li>etc</li></ul> </div> </div> </aside> 
+<p>The full setup looks like:</p>
+<img src="/_astro/complete_connection.zxc1Z8xR_Z18YRmW.webp" srcset="/_astro/complete_connection.zxc1Z8xR_Z18YRmW.webp 500w, /_astro/complete_connection.zxc1Z8xR_Z1gWnDq.webp 640w, /_astro/complete_connection.zxc1Z8xR_o1kHX.webp 750w, /_astro/complete_connection.zxc1Z8xR_2qANlB.webp 828w" alt="physical wiring" loading="lazy" decoding="async" fetchpriority="auto" sizes="(min-width: 500px) 500px, 100vw" style="--fit: cover; --pos: center;" data-astro-image="constrained" width="500" height="608" class="zoomable">
+<p>At power-on, the TX line (<code>D1</code>) shows visible UART frames:</p>
+<img src="/_astro/puseview_trame.xRvkphTI_1ib6y2.webp" srcset="/_astro/puseview_trame.xRvkphTI_1OiGYb.webp 640w, /_astro/puseview_trame.xRvkphTI_t26HC.webp 750w, /_astro/puseview_trame.xRvkphTI_1Q9tnQ.webp 828w, /_astro/puseview_trame.xRvkphTI_1ib6y2.webp 994w" alt="Analyser logic usb" loading="lazy" decoding="async" fetchpriority="auto" sizes="(min-width: 994px) 994px, 100vw" style="--fit: cover; --pos: center;" data-astro-image="constrained" width="994" height="228" class="zoomable">
+<p>PulseView’s channels are labeled <code>D0</code> to <code>D7</code>, while the analyzer itself may label them <code>CH1</code> to <code>CH8</code>.
+La correspondance entre deux est:</p>
+<ul>
+<li>CH1 -> D0</li>
+<li>CH8 -> D7</li>
+</ul>
+<p>In the example above, <code>D1</code> shows typical UART activity.
+By enabling <strong>UART serial decoding</strong>, PulseView can reveal:</p>
+<ul>
+<li><strong>Baud rate</strong> (e.g, 38400)</li>
+<li><strong>Format</strong> : 8 bits, 1 stop bit, no parity (8N1)</li>
+</ul>
+<img src="/_astro/uart_frame_decoded.6Om3hoU6_Z28hGQX.webp" srcset="/_astro/uart_frame_decoded.6Om3hoU6_26U5On.webp 640w, /_astro/uart_frame_decoded.6Om3hoU6_Mbp6M.webp 750w, /_astro/uart_frame_decoded.6Om3hoU6_Z28hGQX.webp 759w" alt="Decoded UART Frame" loading="lazy" decoding="async" fetchpriority="auto" sizes="(min-width: 759px) 759px, 100vw" style="--fit: cover; --pos: center;" data-astro-image="constrained" width="759" height="76" class="zoomable">
+<p>The correct baud rate was found by manually trying common embedded values until readable output appeared:</p>
+<aside aria-label="TIP" class="aside my-3 overflow-hidden rounded-xl border astro-kdde4gve"> <div class="aside-container border-l-8 border-primary px-4 py-3 bg-primary aside-tip astro-kdde4gve"> <p class="not-prose flex items-center gap-x-2 font-medium text-primary astro-kdde4gve" aria-hidden="true"> <svg aria-hidden="true" class="astro-kdde4gve astro-hn7k2gay" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><g fill="none"><path d="m12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.018-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"/><path fill="currentColor" d="M13 20a1 1 0 1 1 0 2h-2a1 1 0 1 1 0-2zM12 2c4.41 0 8 3.543 8 7.933c0 3.006-1.522 5.196-2.78 6.494l-.284.283l-.27.252l-.252.22l-.33.27l-.328.244c-.196.138-.34.329-.466.535l-.145.251l-.141.252c-.24.412-.518.766-1.111.766h-3.786c-.593 0-.871-.354-1.11-.766l-.213-.378c-.145-.253-.305-.494-.54-.66l-.232-.171l-.199-.155l-.227-.188l-.252-.22l-.27-.252l-.285-.283C5.522 15.129 4 12.939 4 9.933C4 5.543 7.59 2 12 2m0 2C8.677 4 6 6.665 6 9.933c0 2.624 1.533 4.494 2.593 5.471l.245.218l.22.182l.27.208l.072.052c.315.222.549.531.762.854l.373.582h2.93l.373-.582c.213-.323.447-.632.762-.854l.243-.182l.206-.165l.233-.2C16.342 14.576 18 12.662 18 9.933C18 6.665 15.323 4 12 4m.293 2.293a1 1 0 0 1 1.497 1.32l-.083.094L12.414 9l1.286 1.286c.364.364.392.937.084 1.333l-.084.095l-1.993 1.993a1 1 0 0 1-1.497-1.32l.083-.094L11.586 11L10.3 9.714a1.01 1.01 0 0 1-.084-1.333l.084-.095z"/></g></svg>  TIP </p> <div class="aside-content mt-2 astro-kdde4gve"> <p>The most accurate way to identify the baud rate is to use an oscilloscope to measure a bit’s width
+on the TX line and compute the rate from that.</p> </div> </div> </aside> 
+<p>So far, only a <strong>quick signal validation</strong> was done to confirm <code>D1</code> is TX. Full protocol decoding will come later if needed.</p>
+<h2 id="3-initial-uart-communication-tests">3. Initial UART Communication Tests<a class="anchor" href="#3-initial-uart-communication-tests">#</a></h2>
+<p>Even though the UART baud rate was identified using the logic analyzer, it’s worth remembering that a limited set of common baud rates is typically used. Here’s a <strong>Top 6</strong> list of the most frequently encountered baud rates:</p>
+<center>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Rank</th><th>Baud rate (bps)</th><th>Comments</th></tr></thead><tbody><tr><td>1</td><td><strong>9600</strong></td><td>The most universal default across devices</td></tr><tr><td>2</td><td><strong>115200</strong></td><td>Very popular for fast serial debugging</td></tr><tr><td>3</td><td><strong>38400</strong></td><td>Common in industry, Bluetooth, legacy modems</td></tr><tr><td>4</td><td><strong>19200</strong></td><td>Typical in robust embedded systems</td></tr><tr><td>5</td><td><strong>57600</strong></td><td>Good balance, often seen in wireless devices</td></tr><tr><td>6</td><td><strong>4800</strong></td><td>Legacy, still used in some GPS and RS-232 hardware</td></tr></tbody></table></center>
+<p>It’s common to try each of these baud rates when testing unknown devices. If the selected rate is incorrect, you’ll typically see unreadable garbage output on the terminal.</p>
+<p>To interface with the UART port, several tools can be used:</p>
+<ul>
+<li>USB-to-TTL serial adapters</li>
+<li>Board like Hydrabus, Glasgow, Tigard</li>
+<li>Dev boards like Bluepill or FTDI-based ones</li>
+</ul>
+<p>In this case, a USB-to-TTL adapter is used. It usually features 5 or 6 pins and looks like this:</p>
+<img src="/_astro/usb_to_ttl.ivCGEx2-_Z6Dx87.webp" srcset="/_astro/usb_to_ttl.ivCGEx2-_Z6Dx87.webp 400w" alt="UART to TTL" loading="lazy" decoding="async" fetchpriority="auto" sizes="(min-width: 400px) 400px, 100vw" style="--fit: cover; --pos: center;" data-astro-image="constrained" width="400" height="118" class="zoomable">
+<p>As with the logic analyzer, connect Dupont wires to the <code>RX</code>, <code>TX</code>, and <code>GND</code> pins. You don’t need to connect <code>VCC</code>.</p>
+<aside aria-label="CAUTION" class="aside my-3 overflow-hidden rounded-xl border astro-kdde4gve"> <div class="aside-container border-l-8 border-primary px-4 py-3 bg-primary aside-caution astro-kdde4gve"> <p class="not-prose flex items-center gap-x-2 font-medium text-primary astro-kdde4gve" aria-hidden="true"> <svg aria-hidden="true" class="astro-kdde4gve astro-hn7k2gay" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><g fill="none"><path d="m12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.018-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"/><path fill="currentColor" d="m13.299 3.148l8.634 14.954a1.5 1.5 0 0 1-1.299 2.25H3.366a1.5 1.5 0 0 1-1.299-2.25l8.634-14.954c.577-1 2.02-1 2.598 0M12 4.898L4.232 18.352h15.536zM12 15a1 1 0 1 1 0 2a1 1 0 0 1 0-2m0-7a1 1 0 0 1 1 1v4a1 1 0 1 1-2 0V9a1 1 0 0 1 1-1"/></g></svg>  CAUTION </p> <div class="aside-content mt-2 astro-kdde4gve"> <p>If you do use <code>VCC</code>, make sure to: :</p><ul><li>ONLY USE 3.3 VOLTS</li><li>NEVER POWER THE SAME CIRCUIT FROM TWO SOURCES AT ONCE</li></ul> </div> </div> </aside> 
+<p>After wiring everything correctly, the setup should look like this:</p>
+<img src="/_astro/USB_to_ttl_board.BCZ024Jg_2fD8es.webp" srcset="/_astro/USB_to_ttl_board.BCZ024Jg_2fD8es.webp 500w, /_astro/USB_to_ttl_board.BCZ024Jg_vbIyy.webp 640w, /_astro/USB_to_ttl_board.BCZ024Jg_ZxPn4y.webp 750w, /_astro/USB_to_ttl_board.BCZ024Jg_Za8SMk.webp 828w, /_astro/USB_to_ttl_board.BCZ024Jg_Z1vOCYD.webp 1000w" alt="UART to TTL physical" loading="lazy" decoding="async" fetchpriority="auto" sizes="(min-width: 500px) 500px, 100vw" style="--fit: cover; --pos: center;" data-astro-image="constrained" width="500" height="412" class="zoomable">
+<aside aria-label="NOTE" class="aside my-3 overflow-hidden rounded-xl border astro-kdde4gve"> <div class="aside-container border-l-8 border-primary px-4 py-3 bg-primary aside-note astro-kdde4gve"> <p class="not-prose flex items-center gap-x-2 font-medium text-primary astro-kdde4gve" aria-hidden="true"> <svg aria-hidden="true" class="astro-kdde4gve astro-hn7k2gay" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><g fill="none"><path d="m12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.018-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"/><path fill="currentColor" d="M12 2c5.523 0 10 4.477 10 10s-4.477 10-10 10S2 17.523 2 12S6.477 2 12 2m0 2a8 8 0 1 0 0 16a8 8 0 0 0 0-16m-.01 6c.558 0 1.01.452 1.01 1.01v5.124A1 1 0 0 1 12.5 18h-.49A1.01 1.01 0 0 1 11 16.99V12a1 1 0 1 1 0-2zM12 7a1 1 0 1 1 0 2a1 1 0 0 1 0-2"/></g></svg>  NOTE </p> <div class="aside-content mt-2 astro-kdde4gve"> <p>UART requires <code>RX</code> and <code>TX</code> lines to be crossed: the adapter’s <code>RX</code> connects to the device’s <code>TX</code>,
+and vice versa.</p> </div> </div> </aside> 
+<p>Once the USB-to-TTL adapter is plugged into your computer, you can verify that it was detected using <code>dmesg</code> (on Linux):</p>
+<div class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="sh"><pre><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">$</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> dmesg</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">usb</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 1-11.1.2.4:</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> new</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> full-speed</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> USB</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> device</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> number</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 59</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> using</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> xhci_hcd</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">usb</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 1-11.1.2.4:</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> New</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> USB</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> device</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> found,</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> idVendor=10c4,</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> idProduct=ea60,</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> bcdDevice=</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 1.00</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">usb</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 1-11.1.2.4:</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> New</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> USB</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> device</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> strings:</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> Mfr=1,</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> Product=2,</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> SerialNumber=</span><span style="color:#005CC5;--shiki-dark:#79B8FF">3</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">usb</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 1-11.1.2.4:</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> Product:</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> CP2102</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> USB</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> to</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> UART</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> Bridge</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> Controller</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">usb</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 1-11.1.2.4:</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> Manufacturer:</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> Silicon</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> Labs</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">usb</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 1-11.1.2.4:</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> SerialNumber:</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 0001</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">cp210x</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 1-11.1.2.4:1.0:</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> cp210x</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> converter</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> detected</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">usb</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 1-11.1.2.4:</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> cp210x</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> converter</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> now</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> attached</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> to</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ttyUSB1</span></span></code></pre><span class="language ps-1 pe-3 text-sm bg-muted text-muted-foreground">sh</span><button class="copy text-muted-foreground p-1 box-content border rounded bg-primary-foreground" data-code="$ dmesg
+
+usb 1-11.1.2.4: new full-speed USB device number 59 using xhci_hcd
+usb 1-11.1.2.4: New USB device found, idVendor=10c4, idProduct=ea60, bcdDevice= 1.00
+usb 1-11.1.2.4: New USB device strings: Mfr=1, Product=2, SerialNumber=3
+usb 1-11.1.2.4: Product: CP2102 USB to UART Bridge Controller
+usb 1-11.1.2.4: Manufacturer: Silicon Labs
+usb 1-11.1.2.4: SerialNumber: 0001
+cp210x 1-11.1.2.4:1.0: cp210x converter detected
+usb 1-11.1.2.4: cp210x converter now attached to ttyUSB1" onclick="
+          navigator.clipboard.writeText(this.dataset.code);
+          this.classList.add(&#x27;copied&#x27;);
+          setTimeout(() => this.classList.remove(&#x27;copied&#x27;), 2000)
+        "><div class="ready"><svg class="size-5"><use href="/icons/code.svg#mingcute-clipboard-line"></use></svg></div><div class="success hidden"><svg class="size-5"><use href="/icons/code.svg#mingcute-file-check-line"></use></svg></div></button></div>
+<p>Here, the serial port is /dev/ttyUSB1. You can connect to it using screen (or another serial terminal tool):</p>
+<div class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="sh"><pre><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">screen</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /dev/ttyUSB1</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 38400</span></span></code></pre><span class="language ps-1 pe-3 text-sm bg-muted text-muted-foreground">sh</span><button class="copy text-muted-foreground p-1 box-content border rounded bg-primary-foreground" data-code="screen /dev/ttyUSB1 38400" onclick="
+          navigator.clipboard.writeText(this.dataset.code);
+          this.classList.add(&#x27;copied&#x27;);
+          setTimeout(() => this.classList.remove(&#x27;copied&#x27;), 2000)
+        "><div class="ready"><svg class="size-5"><use href="/icons/code.svg#mingcute-clipboard-line"></use></svg></div><div class="success hidden"><svg class="size-5"><use href="/icons/code.svg#mingcute-file-check-line"></use></svg></div></button></div>
+<p>Once the device is powered on, you should see boot messages appear:</p>
+<img src="/_astro/booting_system_uart.0-z2dOzM_ZPGhnG.webp" srcset="/_astro/booting_system_uart.0-z2dOzM_ZPGhnG.webp 500w" alt="System booting UART" loading="lazy" decoding="async" fetchpriority="auto" sizes="(min-width: 500px) 500px, 100vw" style="--fit: cover; --pos: center;" data-astro-image="constrained" width="500" height="335" class="zoomable">
+<p>As shown above, the system boots, and you can read the startup messages through the USB-to-TTL adapter.
+At the end of the output, a login prompt appears. Without valid credentials, it’s not possible to proceed further for now. These credentials might be found later in the firmware or memory dump.</p>
+<p>Reminder: If the wrong baud rate is selected, the output will be garbled or unreadable.
+Example with an incorrect rate:</p>
+<div class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="plaintext"><pre><code><span class="line"><span>screen /dev/ttyUSB1 115200</span></span></code></pre><span class="language ps-1 pe-3 text-sm bg-muted text-muted-foreground">plaintext</span><button class="copy text-muted-foreground p-1 box-content border rounded bg-primary-foreground" data-code="screen /dev/ttyUSB1 115200" onclick="
+          navigator.clipboard.writeText(this.dataset.code);
+          this.classList.add(&#x27;copied&#x27;);
+          setTimeout(() => this.classList.remove(&#x27;copied&#x27;), 2000)
+        "><div class="ready"><svg class="size-5"><use href="/icons/code.svg#mingcute-clipboard-line"></use></svg></div><div class="success hidden"><svg class="size-5"><use href="/icons/code.svg#mingcute-file-check-line"></use></svg></div></button></div>
+<img src="/_astro/bad_baud_speed.mDEJzRsM_Z1hLzJ4.webp" srcset="/_astro/bad_baud_speed.mDEJzRsM_Z1hLzJ4.webp 500w, /_astro/bad_baud_speed.mDEJzRsM_yJqus.webp 640w, /_astro/bad_baud_speed.mDEJzRsM_Z1g1um7.webp 750w, /_astro/bad_baud_speed.mDEJzRsM_Hu6ta.webp 828w" alt="example with bad baud" loading="lazy" decoding="async" fetchpriority="auto" sizes="(min-width: 500px) 500px, 100vw" style="--fit: cover; --pos: center;" data-astro-image="constrained" width="500" height="266" class="zoomable">
+<h2 id="4-uart-message-analysis">4. UART Message Analysis<a class="anchor" href="#4-uart-message-analysis">#</a></h2>
+<p>This section analyzes the messages retrieved via UART. The goal is to extract key information and understand how to leverage it during the firmware extraction phase.</p>
+<h3 id="41-detected-hardware-information">4.1 Detected Hardware Information<a class="anchor" href="#41-detected-hardware-information">#</a></h3>
+<p>Right from the initial boot sequence, several hardware details are displayed:</p>
+<img src="/_astro/boot_sequence_hardware.D2ztDgIE_Z4TKTG.webp" srcset="/_astro/boot_sequence_hardware.D2ztDgIE_Z4TKTG.webp 600w, /_astro/boot_sequence_hardware.D2ztDgIE_Z2sACoB.webp 640w" alt="Boot sequence hardware info" loading="lazy" decoding="async" fetchpriority="auto" sizes="(min-width: 600px) 600px, 100vw" style="--fit: cover; --pos: center;" data-astro-image="constrained" width="600" height="146" class="zoomable">
+<ul>
+<li><strong>In red</strong>: 32 MB of DDR1 memory detected</li>
+<li><strong>In blue</strong>: SoC <code>RTL8196E</code>, running at 380 MHz</li>
+<li><strong>In green</strong>: Ethernet port 0 uses the SoC’s internal PHY transceiver — no external chip is present.</li>
+</ul>
+<p>Further down, the system prints memory address mappings:</p>
+<img src="/_astro/boot_sequence_memory_address.D1fXV4Oc_Z1esXrQ.webp" alt="Boot sequence memory address" loading="lazy" decoding="async" fetchpriority="auto" sizes="(min-width: 500px) 500px, 100vw" style="--fit: cover; --pos: center;" data-astro-image="constrained" width="500" height="316" class="zoomable">
+<p>Then, the flash memory version and characteristics (SPI flash) are revealed:</p>
+<img src="/_astro/boot_sequence_flash_spi.Drr95WLA_Zs4xJI.webp" srcset="/_astro/boot_sequence_flash_spi.Drr95WLA_Zs4xJI.webp 600w, /_astro/boot_sequence_flash_spi.Drr95WLA_cbjrt.webp 640w, /_astro/boot_sequence_flash_spi.Drr95WLA_2rbkma.webp 750w" alt="Boot sequence flash info" loading="lazy" decoding="async" fetchpriority="auto" sizes="(min-width: 600px) 600px, 100vw" style="--fit: cover; --pos: center;" data-astro-image="constrained" width="600" height="109" class="zoomable">
+<p>Finally, the partition table — a <strong>critical piece of information</strong> — lists key memory areas:</p>
+<img src="/_astro/boot_sequence_partition.Bkfdvi8Q_Z11VvYF.webp" alt="Boot sequence partition info" loading="lazy" decoding="async" fetchpriority="auto" sizes="(min-width: 600px) 600px, 100vw" style="--fit: cover; --pos: center;" data-astro-image="constrained" width="600" height="188" class="zoomable">
+<h3 id="42-memory-technology-device-mtd-partition-structure">4.2 Memory Technology Device (MTD) Partition Structure<a class="anchor" href="#42-memory-technology-device-mtd-partition-structure">#</a></h3>
+<p>During boot, the MTD partition table describes how the flash memory (in this case, a GD25Q128 16 MB chip) is segmented:</p>
+<center>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Partition</th><th>Offset</th><th>Size</th><th>Name</th></tr></thead><tbody><tr><td>boot+cfg</td><td>0x00000000</td><td>0x20000</td><td>boot+cfg</td></tr><tr><td>kernel / linux</td><td>0x00020000</td><td>0x1e0000</td><td>linux</td></tr><tr><td>rootfs</td><td>0x00200000</td><td>0x200000</td><td>rootfs</td></tr><tr><td>tuya-label</td><td>0x00400000</td><td>0x20000</td><td>tuya-label</td></tr><tr><td>jffs2-fs</td><td>0x00420000</td><td>0xbe0000</td><td>jffs2-fs</td></tr></tbody></table></center>
+<p>This layout gives useful clues for firmware extraction. For example, the <code>tuya-label</code> partition likely contains manufacturer-specific metadata. Knowing its offset and size allows for targeted extraction, without needing to dump the entire flash.
+These memory mappings will be helpful when reconstructing the full firmware image or analyzing partitions individually.</p>
+<h3 id="43-operating-system-details">4.3 Operating System Details<a class="anchor" href="#43-operating-system-details">#</a></h3>
+<p>The boot log also reveals key OS information:</p>
+<ul>
+<li>Linux version :
+<div class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="plaintext"><pre><code><span class="line"><span>Linux version 3.10.90 (zhangpc@embed) (gcc version 4.6.4 (Realtek RSDK-4.6.4 Build 2080) ) #1 Thu Jul 29 21:36:28 CST 2021</span></span></code></pre><span class="language ps-1 pe-3 text-sm bg-muted text-muted-foreground">plaintext</span><button class="copy text-muted-foreground p-1 box-content border rounded bg-primary-foreground" data-code="Linux version 3.10.90 (zhangpc@embed) (gcc version 4.6.4 (Realtek RSDK-4.6.4 Build 2080) ) #1 Thu Jul 29 21:36:28 CST 2021" onclick="
+          navigator.clipboard.writeText(this.dataset.code);
+          this.classList.add(&#x27;copied&#x27;);
+          setTimeout(() => this.classList.remove(&#x27;copied&#x27;), 2000)
+        "><div class="ready"><svg class="size-5"><use href="/icons/code.svg#mingcute-clipboard-line"></use></svg></div><div class="success hidden"><svg class="size-5"><use href="/icons/code.svg#mingcute-file-check-line"></use></svg></div></button></div>
+</li>
+<li>BusyBox version:
+<div class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="plaintext"><pre><code><span class="line"><span>BusyBox v1.13.4 (2021-07-29 21:31:51 CST)</span></span></code></pre><span class="language ps-1 pe-3 text-sm bg-muted text-muted-foreground">plaintext</span><button class="copy text-muted-foreground p-1 box-content border rounded bg-primary-foreground" data-code="BusyBox v1.13.4 (2021-07-29 21:31:51 CST)" onclick="
+          navigator.clipboard.writeText(this.dataset.code);
+          this.classList.add(&#x27;copied&#x27;);
+          setTimeout(() => this.classList.remove(&#x27;copied&#x27;), 2000)
+        "><div class="ready"><svg class="size-5"><use href="/icons/code.svg#mingcute-clipboard-line"></use></svg></div><div class="success hidden"><svg class="size-5"><use href="/icons/code.svg#mingcute-file-check-line"></use></svg></div></button></div>
+</li>
+<li>Root filesystem : <code>squashfs</code> (read-only)
+<div class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="plaintext"><pre><code><span class="line"><span>VFS: Mounted root (squashfs filesystem) readonly on device 31:2.</span></span></code></pre><span class="language ps-1 pe-3 text-sm bg-muted text-muted-foreground">plaintext</span><button class="copy text-muted-foreground p-1 box-content border rounded bg-primary-foreground" data-code="VFS: Mounted root (squashfs filesystem) readonly on device 31:2." onclick="
+          navigator.clipboard.writeText(this.dataset.code);
+          this.classList.add(&#x27;copied&#x27;);
+          setTimeout(() => this.classList.remove(&#x27;copied&#x27;), 2000)
+        "><div class="ready"><svg class="size-5"><use href="/icons/code.svg#mingcute-clipboard-line"></use></svg></div><div class="success hidden"><svg class="size-5"><use href="/icons/code.svg#mingcute-file-check-line"></use></svg></div></button></div>
+</li>
+<li>Auto-execution of <code>/tuya/tuya_start.sh</code></li>
+<li>Network interface initialization (<code>eth0</code>, <code>eth1</code>, <code>peth0</code>)</li>
+<li>DHCP client startup via <code>udhcpc</code></li>
+</ul>
+<h3 id="44-tuya-specific-indicators">4.4 Tuya-Specific Indicators<a class="anchor" href="#44-tuya-specific-indicators">#</a></h3>
+<p>Although the Smart Home gateway is sold under the LIDL brand, no explicit mention of LIDL appears in the logs. However, several hints point to Tuya as the true manufacturer</p>
+<ul>
+<li>Custom scripts like (<code>tuya_start_children.sh</code>)</li>
+<li>User directory <code>/tuya/tuya_user1</code></li>
+<li>Environment variable <code>TY_ENV_APP_RUN_DIR</code></li>
+<li>Default configuration file <code>/tuya/def.cfg</code></li>
+</ul>
+<p>It is likely that LIDL simply rebranded a Tuya device without modifying the firmware. This suggests that many similar Zigbee gateways — even across different brands — may share the same hardware and software base.</p>
+<h2 id="5-preparing-for-firmware-extraction">5. <strong>Preparing for Firmware Extraction</strong><a class="anchor" href="#5-preparing-for-firmware-extraction">#</a></h2>
+<h3 id="51-recap-of-collected-information">5.1 Recap of Collected Information<a class="anchor" href="#51-recap-of-collected-information">#</a></h3>
+<p>With the partition table obtained earlier, it’s worth revisiting the objective of this stage: extracting the firmware.
+Ideally, we want to extract everything to ensure that no critical information is missed.</p>
+<p>However, doing a full dump over UART at only 38400 baud would take hours.
+For this reason, we’ll begin by extracting just the tuya-label partition. Reminder:</p>
+<center>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Partition</th><th>Offset</th><th>Size</th><th>Name</th></tr></thead><tbody><tr><td>tuya-label</td><td>0x00400000</td><td>0x20000</td><td>tuya-label</td></tr></tbody></table></center>
+<p>But how can we extract memory contents? That’s what the next section explains.</p>
+<h3 id="52-possible-extraction-methods">5.2 Possible Extraction Methods<a class="anchor" href="#52-possible-extraction-methods">#</a></h3>
+<p>Reading the content of an SPI flash memory can be done in several ways, depending on physical access to the chip, available interfaces, and implemented protections.
+Each method has its pros, cons, and requirements.</p>
+<h4 id="521-extraction-via-uart--serial-console-bootloader">5.2.1 Extraction via UART / Serial Console (Bootloader)<a class="anchor" href="#521-extraction-via-uart--serial-console-bootloader">#</a></h4>
+<p>Some embedded systems include an interactive bootloader (like <strong>U-Boot</strong>) accessible via UART. In certain cases, this bootloader allows:</p>
+<ul>
+<li><strong>Dumping memory</strong> (using commands like <code>md</code>, <code>dump</code>, etc.)</li>
+<li><strong>Loading firmware</strong> or scripts from external sources</li>
+<li><strong>Redirecting memory content</strong> to the serial terminal</li>
+</ul>
+<p>✔️ <strong>Pros</strong>:</p>
+<ul>
+<li><strong>Non-intrusive</strong> method (no soldering)</li>
+<li>Requires only a USB-to-UART adapter</li>
+<li>Often safer and more convenient than physical dumping</li>
+</ul>
+<p>❌ <strong>Cons</strong>:</p>
+<ul>
+<li>Not all systems <strong>expose</strong> the bootloader</li>
+<li>The bootloader may be <strong>locked down</strong> (no prompt, limited commands)</li>
+<li>The UART port might be disabled or protected</li>
+</ul>
+<p>For the Silvercrest gateway, this method is <strong>applicable</strong>.</p>
+<h4 id="522-for-the-silvercrest-gateway-this-method-is-applicableextraction-via-jtag--swd">5.2.2 For the Silvercrest gateway, this method is applicable.Extraction via JTAG / SWD<a class="anchor" href="#522-for-the-silvercrest-gateway-this-method-is-applicableextraction-via-jtag--swd">#</a></h4>
+<p>JTAG (or SWD for ARM microcontrollers) is a low-level debugging interface that enables:</p>
+<ul>
+<li>Direct access to RAM and flash</li>
+<li>Full CPU control</li>
+<li>Firmware dumping or code injection</li>
+</ul>
+<p>✔️ <strong>Pros</strong>:</p>
+<ul>
+<li><strong>Full system access</strong>, even with some firmware protections</li>
+<li>Can work even if UART is not available</li>
+</ul>
+<p>❌ <strong>Cons</strong>:</p>
+<ul>
+<li>Not all boards have <strong>exposed or active JTAG pins</strong></li>
+<li>Pads may be unpopulated or disabled</li>
+<li>Requires <strong>specialized hardware</strong> (JTAGulator, OpenOCD, STLink…) and advanced knowledge</li>
+</ul>
+<p>Requires specialized hardware (JTAGulator, OpenOCD, STLink…) and advanced knowledge</p>
+<p>Test pads labeled <strong>SWDIO</strong> and <strong>SWCLK</strong> are available on the PCB but are connected to the Zigbee chip.
+Thus, they only allow debugging that component — not the main SoC.</p>
+<p>Still, out of curiosity, here’s how to test it using STLink and pyOCD:</p>
+<div class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="sh"><pre><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">$</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> pyocd</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> pack</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> install</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> EFR32MG1B232F256GM48</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">$</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> pyocd</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> commander</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --target</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> EFR32MG1B232F256GM48</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">$</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> pyoc</span><span style="color:#24292E;--shiki-dark:#E1E4E8">d</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> rw</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 0xE000ED00</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 4</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">e000ed00:</span><span style="color:#032F62;--shiki-dark:#9ECBFF">  410fc241</span></span></code></pre><span class="language ps-1 pe-3 text-sm bg-muted text-muted-foreground">sh</span><button class="copy text-muted-foreground p-1 box-content border rounded bg-primary-foreground" data-code="$ pyocd pack install EFR32MG1B232F256GM48
+$ pyocd commander --target EFR32MG1B232F256GM48
+$ pyocd> rw 0xE000ED00 4
+e000ed00:  410fc241" onclick="
+          navigator.clipboard.writeText(this.dataset.code);
+          this.classList.add(&#x27;copied&#x27;);
+          setTimeout(() => this.classList.remove(&#x27;copied&#x27;), 2000)
+        "><div class="ready"><svg class="size-5"><use href="/icons/code.svg#mingcute-clipboard-line"></use></svg></div><div class="success hidden"><svg class="size-5"><use href="/icons/code.svg#mingcute-file-check-line"></use></svg></div></button></div>
+<p>The address <code>0xE000ED00</code> is a fixed register (<code>CPUID</code>) in all ARM Cortex-M CPUs.
+Now that the returned value looks valid, we can dump the firmware:</p>
+<div class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="sh"><pre><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">pyocd</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> cmd</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --target</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> EFR32MG1B232F256GM48</span><span style="color:#032F62;--shiki-dark:#9ECBFF">  -c</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> "savemem 0 0x40000 fimware_zigbee.bin"</span></span></code></pre><span class="language ps-1 pe-3 text-sm bg-muted text-muted-foreground">sh</span><button class="copy text-muted-foreground p-1 box-content border rounded bg-primary-foreground" data-code="pyocd cmd --target EFR32MG1B232F256GM48  -c &#x22;savemem 0 0x40000 fimware_zigbee.bin&#x22;" onclick="
+          navigator.clipboard.writeText(this.dataset.code);
+          this.classList.add(&#x27;copied&#x27;);
+          setTimeout(() => this.classList.remove(&#x27;copied&#x27;), 2000)
+        "><div class="ready"><svg class="size-5"><use href="/icons/code.svg#mingcute-clipboard-line"></use></svg></div><div class="success hidden"><svg class="size-5"><use href="/icons/code.svg#mingcute-file-check-line"></use></svg></div></button></div>
+<p>Verify the dump:</p>
+<div class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="sh"><pre><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">strings</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> firmware_zigbee.bin</span><span style="color:#D73A49;--shiki-dark:#F97583"> |</span><span style="color:#6F42C1;--shiki-dark:#B392F0">grep</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -i</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> zigbee</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">F:/siliconlabs/install_dir/developer/sdks/gecko_sdk_suite/v2.5/protocol/zigbee/app/em260/serial-interface-uart.c</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">ZigBeeAlliance091821</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">ZigBeeAlliance09</span></span></code></pre><span class="language ps-1 pe-3 text-sm bg-muted text-muted-foreground">sh</span><button class="copy text-muted-foreground p-1 box-content border rounded bg-primary-foreground" data-code="strings firmware_zigbee.bin |grep -i zigbee
+
+F:/siliconlabs/install_dir/developer/sdks/gecko_sdk_suite/v2.5/protocol/zigbee/app/em260/serial-interface-uart.c
+ZigBeeAlliance091821
+ZigBeeAlliance09" onclick="
+          navigator.clipboard.writeText(this.dataset.code);
+          this.classList.add(&#x27;copied&#x27;);
+          setTimeout(() => this.classList.remove(&#x27;copied&#x27;), 2000)
+        "><div class="ready"><svg class="size-5"><use href="/icons/code.svg#mingcute-clipboard-line"></use></svg></div><div class="success hidden"><svg class="size-5"><use href="/icons/code.svg#mingcute-file-check-line"></use></svg></div></button></div>
+<h4 id="523-physical-extraction-via-spi-flash">5.2.3 Physical Extraction via SPI Flash<a class="anchor" href="#523-physical-extraction-via-spi-flash">#</a></h4>
+<p>Another option is to read the SPI flash chip directly using a flash programmer.
+Two main approaches:</p>
+<ol>
+<li><strong>In-circuit read</strong> using a SOIC clip
+<ul>
+<li>Allows to <strong>read the chip without desoldering it</strong></li>
+<li>NécesRequires a <strong>SOIC-8 clip</strong> and a programmer (e.g. CH341A, FlashcatUSB, Hydrabus)</li>
+<li>Ensure the chip is <strong>not powered by the PCB</strong> during the read</li>
+</ul>
+</li>
+<li>Desolder and read off-board
+<ul>
+<li>Requires <strong>desoldering</strong> the flash chip</li>
+<li>Chip is read using a dedicated adapter</li>
+</ul>
+</li>
+</ol>
+<p>✔️ <strong>Pros</strong>:</p>
+<ul>
+<li><strong>Direct, reliable</strong> methodCons</li>
+<li>Full access to the raw firmware image</li>
+</ul>
+<p>❌ <strong>Cons</strong>:</p>
+<ul>
+<li>Requires <strong>specific tools</strong> (programmer, clip, soldering iron…)</li>
+<li>Risk of damaging the chip or PCB pads</li>
+</ul>
+<p>In the Silvercrest gateway case, this method is also applicable.</p>
+<h3 id="53-extraction-implementation">5.3 Extraction implementation<a class="anchor" href="#53-extraction-implementation">#</a></h3>
+<h4 id="531-extraction-via-uart">5.3.1 Extraction Via UART<a class="anchor" href="#531-extraction-via-uart">#</a></h4>
+<h5 id="5311-hardware-setup">5.3.1.1 Hardware Setup<a class="anchor" href="#5311-hardware-setup">#</a></h5>
+<p>Requirements:</p>
+<ul>
+<li>USB-to-TTL adapter</li>
+<li>Baud rate: 38400</li>
+<li>Terminal application</li>
+</ul>
+<p>As discussed earlier, 38400 is quite slow. Testing higher baud rates revealed that none worked in this case — the system accepts only 38400.</p>
+<h5 id="5312-boot-access-and-data-dump">5.3.1.2 Boot Access and Data Dump<a class="anchor" href="#5312-boot-access-and-data-dump">#</a></h5>
+<p>peed is essential. Upon power-up, pressing <kbd>Esc</kbd> quickly interrupts the Realtek bootloader and opens the command prompt:</p>
+<img src="/_astro/realtek_bootloader_prompt.B-JQeaFb_ZgncIr.webp" alt="Realtek bootloader prompt" loading="lazy" decoding="async" fetchpriority="auto" sizes="(min-width: 400px) 400px, 100vw" style="--fit: cover; --pos: center;" data-astro-image="constrained" width="400" height="161" class="zoomable">
+<p>Bootloader command list:</p>
+<img src="/_astro/realtek_bootloader_command.C7-WViCL_Z28VNWo.webp" srcset="/_astro/realtek_bootloader_command.C7-WViCL_1b0TES.webp 640w, /_astro/realtek_bootloader_command.C7-WViCL_Z28VNWo.webp 700w, /_astro/realtek_bootloader_command.C7-WViCL_ZK7rtM.webp 750w, /_astro/realtek_bootloader_command.C7-WViCL_ZNLsL1.webp 828w, /_astro/realtek_bootloader_command.C7-WViCL_Z1JdDSD.webp 1080w" alt="Realtek bootloader command" loading="lazy" decoding="async" fetchpriority="auto" sizes="(min-width: 700px) 700px, 100vw" style="--fit: cover; --pos: center;" data-astro-image="constrained" width="700" height="298" class="zoomable">
+<p>Useful commands:</p>
+<ul>
+<li><code>FLR</code>: Flash Read</li>
+<li><code>DW</code>: Dump Word</li>
+<li><code>tftp</code>: pour charger un firmware depuis le réseau</li>
+</ul>
+<p>We’ll extract the <code>tuya-label</code> partition:</p>
+<center>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Partition</th><th>Offset</th><th>Size</th><th>Name</th></tr></thead><tbody><tr><td>tuya-label</td><td>0x00400000</td><td>0x20000</td><td>tuya-label</td></tr></tbody></table></center>
+<p>Commands</p>
+<div class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="sh"><pre><code><span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D"># Read flash into RAM</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">FLR</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 0x80000000</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 0x00400000</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 0x20000</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D"># Dump RAM content</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">DW</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 0x80000000</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 131072</span></span></code></pre><span class="language ps-1 pe-3 text-sm bg-muted text-muted-foreground">sh</span><button class="copy text-muted-foreground p-1 box-content border rounded bg-primary-foreground" data-code="# Read flash into RAM
+FLR 0x80000000 0x00400000 0x20000
+
+# Dump RAM content
+DW 0x80000000 131072" onclick="
+          navigator.clipboard.writeText(this.dataset.code);
+          this.classList.add(&#x27;copied&#x27;);
+          setTimeout(() => this.classList.remove(&#x27;copied&#x27;), 2000)
+        "><div class="ready"><svg class="size-5"><use href="/icons/code.svg#mingcute-clipboard-line"></use></svg></div><div class="success hidden"><svg class="size-5"><use href="/icons/code.svg#mingcute-file-check-line"></use></svg></div></button></div>
+<p>The <code>DW</code> output looks like:</p>
+<img src="/_astro/boot_sequence_memory_dump.2cLXqw66_11MFRC.webp" srcset="/_astro/boot_sequence_memory_dump.2cLXqw66_Z1wPHYv.webp 640w, /_astro/boot_sequence_memory_dump.2cLXqw66_11MFRC.webp 700w, /_astro/boot_sequence_memory_dump.2cLXqw66_1mq0Kk.webp 750w, /_astro/boot_sequence_memory_dump.2cLXqw66_ZXSUfI.webp 828w" alt="Boot sequence memory dump" loading="lazy" decoding="async" fetchpriority="auto" sizes="(min-width: 700px) 700px, 100vw" style="--fit: cover; --pos: center;" data-astro-image="constrained" width="700" height="195" class="zoomable">
+<p>Due to the data size, automation is necessary. The pyserial Python library makes scripting easy. A great starting point is Paul Banks’ script: <a href="https://github.com/banksy-git/lidl-gateway-freedom/blob/master/scripts/dump_flash.py" rel="nofollow noopener noreferrer" target="_blank">dump_flash.py<span> ↗</span></a></p>
+<p>The first dump shows human-readable strings:</p>
+<div class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="zsh"><pre><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">$</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> strings</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /tmp/tuya-label.bin</span><span style="color:#032F62;--shiki-dark:#9ECBFF">                                                                      </span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">r6</span><span style="color:#6F42C1;--shiki-dark:#B392F0">'0-*9i?0orWl'</span><span style="color:#6F42C1;--shiki-dark:#B392F0">x</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">N}$u^</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">cc8cbfac1265</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">HMGW22210014666</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">Gateway-type</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> c</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">Lidl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> Digital</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> International</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">HG09101</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">HMGW22210014666</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">04da2d02c69eedfd</span></span></code></pre><span class="language ps-1 pe-3 text-sm bg-muted text-muted-foreground">zsh</span><button class="copy text-muted-foreground p-1 box-content border rounded bg-primary-foreground" data-code="$ strings /tmp/tuya-label.bin                                                                      
+
+r6&#x27;0-*9i?0orWl&#x27;x
+N}$u^
+cc8cbfac1265
+HMGW22210014666
+Gateway-type c
+Lidl Digital International
+HG09101
+HMGW22210014666
+04da2d02c69eedfd" onclick="
+          navigator.clipboard.writeText(this.dataset.code);
+          this.classList.add(&#x27;copied&#x27;);
+          setTimeout(() => this.classList.remove(&#x27;copied&#x27;), 2000)
+        "><div class="ready"><svg class="size-5"><use href="/icons/code.svg#mingcute-clipboard-line"></use></svg></div><div class="success hidden"><svg class="size-5"><use href="/icons/code.svg#mingcute-file-check-line"></use></svg></div></button></div>
+<p>At first glance, no directly exploitable information like credentials or keys.
+Subsequently, each partition was extracted using the following commands, with the start and end addresses corresponding to the partition offsets identified in the partition table obtained earlier.</p>
+<div class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="sh"><pre><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">$</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> python</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> dump_flash.py</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --start-addr</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 0x0</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --end-addr</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 0x20000</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --output-file</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ./boot.bin</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --serial-port</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /dev/ttyUSB0</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">$</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> python</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> dump_flash.py</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --start-addr</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 0x420000</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --end-addr</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 0x1000000</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --output-file</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ./jffs2-fs.bin</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --serial-port</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /dev/ttyUSB0</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">$</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> python</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> dump_flash.py</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --start-addr</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 0x20000</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --end-addr</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 0x200000</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --output-file</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ./linux.bin</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --serial-port</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /dev/ttyUSB0</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">$</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> python</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> dump_flash.py</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --start-addr</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 0x200000</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --end-addr</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 0x400000</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --output-file</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ./rootfs.bin</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --serial-port</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /dev/ttyUSB0</span></span></code></pre><span class="language ps-1 pe-3 text-sm bg-muted text-muted-foreground">sh</span><button class="copy text-muted-foreground p-1 box-content border rounded bg-primary-foreground" data-code="$ python dump_flash.py --start-addr 0x0 --end-addr 0x20000 --output-file ./boot.bin --serial-port /dev/ttyUSB0
+$ python dump_flash.py --start-addr 0x420000 --end-addr 0x1000000 --output-file ./jffs2-fs.bin --serial-port /dev/ttyUSB0
+$ python dump_flash.py --start-addr 0x20000 --end-addr 0x200000 --output-file ./linux.bin --serial-port /dev/ttyUSB0
+$ python dump_flash.py --start-addr 0x200000 --end-addr 0x400000 --output-file ./rootfs.bin --serial-port /dev/ttyUSB0" onclick="
+          navigator.clipboard.writeText(this.dataset.code);
+          this.classList.add(&#x27;copied&#x27;);
+          setTimeout(() => this.classList.remove(&#x27;copied&#x27;), 2000)
+        "><div class="ready"><svg class="size-5"><use href="/icons/code.svg#mingcute-clipboard-line"></use></svg></div><div class="success hidden"><svg class="size-5"><use href="/icons/code.svg#mingcute-file-check-line"></use></svg></div></button></div>
+<p>Verify with the <code>file</code> command:</p>
+<div class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="sh"><pre><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">$</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> file</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> *</span><span style="color:#032F62;--shiki-dark:#9ECBFF">.bin</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">boot.bin:</span><span style="color:#032F62;--shiki-dark:#9ECBFF">   data</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">jffs2-fs.bin:</span><span style="color:#032F62;--shiki-dark:#9ECBFF">   Linux</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> jffs2</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> filesystem</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> data</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> big</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> endian</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">linux.bin:</span><span style="color:#032F62;--shiki-dark:#9ECBFF">  data</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">rootfs.bin:</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> Squashfs</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> filesystem,</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> little</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> endian,</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> version</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 4.0,</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> xz</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> compressed,</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 918722</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> bytes,</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 167</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> inodes,</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> blocksize:</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 131072</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> bytes,</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> created:</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> Fri</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> Jan</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 29</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 00:53:20</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 2038</span></span></code></pre><span class="language ps-1 pe-3 text-sm bg-muted text-muted-foreground">sh</span><button class="copy text-muted-foreground p-1 box-content border rounded bg-primary-foreground" data-code="$ file *.bin
+boot.bin:   data
+jffs2-fs.bin:   Linux jffs2 filesystem data big endian
+linux.bin:  data
+rootfs.bin: Squashfs filesystem, little endian, version 4.0, xz compressed, 918722 bytes, 167 inodes, blocksize: 131072 bytes, created: Fri Jan 29 00:53:20 2038" onclick="
+          navigator.clipboard.writeText(this.dataset.code);
+          this.classList.add(&#x27;copied&#x27;);
+          setTimeout(() => this.classList.remove(&#x27;copied&#x27;), 2000)
+        "><div class="ready"><svg class="size-5"><use href="/icons/code.svg#mingcute-clipboard-line"></use></svg></div><div class="success hidden"><svg class="size-5"><use href="/icons/code.svg#mingcute-file-check-line"></use></svg></div></button></div>
+<p>To extract SquashFS, use <code>binwalk</code> (preferably via Docker to avoid dependency issues):</p>
+<div class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="sh"><pre><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">sudo</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> docker</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> run</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -t</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -v</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> "</span><span style="color:#24292E;--shiki-dark:#E1E4E8">$PWD</span><span style="color:#032F62;--shiki-dark:#9ECBFF">":/analysis</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> binwalkv3</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -Me</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> rootfs.bin</span></span></code></pre><span class="language ps-1 pe-3 text-sm bg-muted text-muted-foreground">sh</span><button class="copy text-muted-foreground p-1 box-content border rounded bg-primary-foreground" data-code="sudo docker run -t -v &#x22;$PWD&#x22;:/analysis binwalkv3 -Me rootfs.bin" onclick="
+          navigator.clipboard.writeText(this.dataset.code);
+          this.classList.add(&#x27;copied&#x27;);
+          setTimeout(() => this.classList.remove(&#x27;copied&#x27;), 2000)
+        "><div class="ready"><svg class="size-5"><use href="/icons/code.svg#mingcute-clipboard-line"></use></svg></div><div class="success hidden"><svg class="size-5"><use href="/icons/code.svg#mingcute-file-check-line"></use></svg></div></button></div>
+<p>From there, the goal is to try to identify where the root password is located in order to connect via SSH.
+To do this, you can cheat by retrieving the digest from the “/etc/shadow” file and trying to crack it. Spoiler: Since the password is only 8 characters long, it takes quite a long time to crack it given the <code>descrypt</code> algorithm—a little over 30 years on my computer.</p>
+<p>But that’s not “fun.” Instead, you have to try to figure out how the password is set up in Tuya.</p>
+<h4 id="532-extraction-via-spi">5.3.2 Extraction via SPI<a class="anchor" href="#532-extraction-via-spi">#</a></h4>
+<h5 id="531-hardware-setup"><strong>5.3.1 Hardware Setup</strong><a class="anchor" href="#531-hardware-setup">#</a></h5>
+<p>L’extraction nécessite:</p>
+<ul>
+<li>SPI programmer:
+<ul>
+<li>HydraBus</li>
+<li>CH341A</li>
+</ul>
+</li>
+<li>SOIC clip</li>
+<li>Dupont wire</li>
+<li>Universal Chip IC Clamp</li>
+</ul>
+<hr>
+<h5 id="532-wiring-and-precautions"><strong>5.3.2 Wiring and Precautions</strong><a class="anchor" href="#532-wiring-and-precautions">#</a></h5>
+<p>Check the flash chip’s datasheet to confirm correct pinout:</p>
+<img src="/_astro/spi_pin_connection.D3uMtvB2_1u3yF3.webp" srcset="/_astro/spi_pin_connection.D3uMtvB2_1u3yF3.webp 600w" alt="SPI pin connection" loading="lazy" decoding="async" fetchpriority="auto" sizes="(min-width: 600px) 600px, 100vw" style="--fit: cover; --pos: center;" data-astro-image="constrained" width="600" height="473" class="zoomable">
+
+<aside aria-label="CAUTION" class="aside my-3 overflow-hidden rounded-xl border astro-kdde4gve"> <div class="aside-container border-l-8 border-primary px-4 py-3 bg-primary aside-caution astro-kdde4gve"> <p class="not-prose flex items-center gap-x-2 font-medium text-primary astro-kdde4gve" aria-hidden="true"> <svg aria-hidden="true" class="astro-kdde4gve astro-hn7k2gay" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><g fill="none"><path d="m12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.018-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"/><path fill="currentColor" d="m13.299 3.148l8.634 14.954a1.5 1.5 0 0 1-1.299 2.25H3.366a1.5 1.5 0 0 1-1.299-2.25l8.634-14.954c.577-1 2.02-1 2.598 0M12 4.898L4.232 18.352h15.536zM12 15a1 1 0 1 1 0 2a1 1 0 0 1 0-2m0-7a1 1 0 0 1 1 1v4a1 1 0 1 1-2 0V9a1 1 0 0 1 1-1"/></g></svg>  CAUTION </p> <div class="aside-content mt-2 astro-kdde4gve"> <ul>
+<li>Never <strong>power the target board</strong> during extraction</li>
+<li>Always check <strong>voltage compatibility</strong> (3.3V)</li>
+</ul> </div> </div> </aside> 
+<p>Extraction can be attempted with:</p>
+<ul>
+<li>CH341A + SOIC clip</li>
+<li>HydraBus + IC clamp + Dupont cables</li>
+</ul>
+
+<aside aria-label="Issue 1" class="aside my-3 overflow-hidden rounded-xl border astro-kdde4gve"> <div class="aside-container border-l-8 border-primary px-4 py-3 bg-primary aside-note astro-kdde4gve"> <p class="not-prose flex items-center gap-x-2 font-medium text-primary astro-kdde4gve" aria-hidden="true"> <svg aria-hidden="true" class="astro-kdde4gve astro-hn7k2gay" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><g fill="none"><path d="m12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.018-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"/><path fill="currentColor" d="M12 2c5.523 0 10 4.477 10 10s-4.477 10-10 10S2 17.523 2 12S6.477 2 12 2m0 2a8 8 0 1 0 0 16a8 8 0 0 0 0-16m-.01 6c.558 0 1.01.452 1.01 1.01v5.124A1 1 0 0 1 12.5 18h-.49A1.01 1.01 0 0 1 11 16.99V12a1 1 0 1 1 0-2zM12 7a1 1 0 1 1 0 2a1 1 0 0 1 0-2"/></g></svg>  Issue 1 </p> <div class="aside-content mt-2 astro-kdde4gve"> <p>Tests with a CH341A adapter and SOIC clip (from AliExpress) failed. Despite multiple attempts, no stable connection was achieved</p> </div> </div> </aside> 
+
+<aside aria-label="Issue 2" class="aside my-3 overflow-hidden rounded-xl border astro-kdde4gve"> <div class="aside-container border-l-8 border-primary px-4 py-3 bg-primary aside-note astro-kdde4gve"> <p class="not-prose flex items-center gap-x-2 font-medium text-primary astro-kdde4gve" aria-hidden="true"> <svg aria-hidden="true" class="astro-kdde4gve astro-hn7k2gay" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><g fill="none"><path d="m12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.018-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"/><path fill="currentColor" d="M12 2c5.523 0 10 4.477 10 10s-4.477 10-10 10S2 17.523 2 12S6.477 2 12 2m0 2a8 8 0 1 0 0 16a8 8 0 0 0 0-16m-.01 6c.558 0 1.01.452 1.01 1.01v5.124A1 1 0 0 1 12.5 18h-.49A1.01 1.01 0 0 1 11 16.99V12a1 1 0 1 1 0-2zM12 7a1 1 0 1 1 0 2a1 1 0 0 1 0-2"/></g></svg>  Issue 2 </p> <div class="aside-content mt-2 astro-kdde4gve"> <p><code>flashrom</code> failed to detect the chip via HydraBus:</p><div class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="plaintext"><pre><code><span class="line"><span>No EEPROM/flash device found.</span></span>
+<span class="line"><span>Note: flashrom can never write if the flash chip isn't found automatically.</span></span></code></pre><span class="language ps-1 pe-3 text-sm bg-muted text-muted-foreground">plaintext</span><button class="copy text-muted-foreground p-1 box-content border rounded bg-primary-foreground" data-code="No EEPROM/flash device found.
+Note: flashrom can never write if the flash chip isn&#x27;t found automatically." onclick="
+          navigator.clipboard.writeText(this.dataset.code);
+          this.classList.add(&#x27;copied&#x27;);
+          setTimeout(() => this.classList.remove(&#x27;copied&#x27;), 2000)
+        "><div class="ready"><svg class="size-5"><use href="/icons/code.svg#mingcute-clipboard-line"></use></svg></div><div class="success hidden"><svg class="size-5"><use href="/icons/code.svg#mingcute-file-check-line"></use></svg></div></button></div> </div> </div> </aside> 
+<p>Due to this, HydraBus was used for the rest of the extraction</p>
+<p>To connect the flash memory correctly to the Hydrabus, you need to identify the right pins. There are two solutions:</p>
+<ul>
+<li>
+<p>Check the GitHub repository
+<img src="https://raw.githubusercontent.com/hydrabus/hydrafw/refs/heads/master/HydraFW_Default_PinAssignment.jpg" alt="Hydrabus Pin" class="zoomable"></p>
+</li>
+<li>
+<p>Connect to HydraBus and run:</p>
+</li>
+</ul>
+<div class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="sh"><pre><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">screen</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /dev/ttyACM0</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#24292E;--shiki-dark:#E1E4E8"> spi</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">spi1</span><span style="color:#24292E;--shiki-dark:#E1E4E8">> </span><span style="color:#032F62;--shiki-dark:#9ECBFF">show</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> pins</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">CS:</span><span style="color:#032F62;--shiki-dark:#9ECBFF">   PA15</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">SCK:</span><span style="color:#032F62;--shiki-dark:#9ECBFF">  PB3</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">MISO:</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> PB4</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">MOSI:</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> PB5</span></span></code></pre><span class="language ps-1 pe-3 text-sm bg-muted text-muted-foreground">sh</span><button class="copy text-muted-foreground p-1 box-content border rounded bg-primary-foreground" data-code="screen /dev/ttyACM0
+
+> spi
+spi1> show pins
+CS:   PA15
+SCK:  PB3
+MISO: PB4
+MOSI: PB5" onclick="
+          navigator.clipboard.writeText(this.dataset.code);
+          this.classList.add(&#x27;copied&#x27;);
+          setTimeout(() => this.classList.remove(&#x27;copied&#x27;), 2000)
+        "><div class="ready"><svg class="size-5"><use href="/icons/code.svg#mingcute-clipboard-line"></use></svg></div><div class="success hidden"><svg class="size-5"><use href="/icons/code.svg#mingcute-file-check-line"></use></svg></div></button></div>
+<p>This gives the following correspondence:</p>
+<img src="/_astro/spi_hydrabus_match.DrbLkQbV_Z11ilpB.webp" srcset="/_astro/spi_hydrabus_match.DrbLkQbV_Z11ilpB.webp 500w" alt="SPI Hydrabus match" loading="lazy" decoding="async" fetchpriority="auto" sizes="(min-width: 500px) 500px, 100vw" style="--fit: cover; --pos: center;" data-astro-image="constrained" width="500" height="303" class="zoomable">
+<p>Here is the wiring diagram between the Hydrabus and the flash memory:</p>
+<img src="/_astro/wiring_between_hydra_and_flash.BwZhtv2F_2vPeUM.webp" srcset="/_astro/wiring_between_hydra_and_flash.BwZhtv2F_Z1CJAGj.webp 640w, /_astro/wiring_between_hydra_and_flash.BwZhtv2F_ZuSumX.webp 750w, /_astro/wiring_between_hydra_and_flash.BwZhtv2F_2vPeUM.webp 800w, /_astro/wiring_between_hydra_and_flash.BwZhtv2F_Z16692N.webp 828w, /_astro/wiring_between_hydra_and_flash.BwZhtv2F_Z2fJF3s.webp 1080w, /_astro/wiring_between_hydra_and_flash.BwZhtv2F_20wF9D.webp 1280w, /_astro/wiring_between_hydra_and_flash.BwZhtv2F_Z1CgCee.webp 1600w" alt="Wiring Hydrabus <-> flash" loading="lazy" decoding="async" fetchpriority="auto" sizes="(min-width: 800px) 800px, 100vw" style="--fit: cover; --pos: center;" data-astro-image="constrained" width="800" height="274" class="zoomable">
+<p>And, for those who are curious, here’s what it looks like in practice:</p>
+<img src="/_astro/wiring_in_real.BUqZ197e_Z10Da9n.webp" srcset="/_astro/wiring_in_real.BUqZ197e_Z10Da9n.webp 500w, /_astro/wiring_in_real.BUqZ197e_Z1L9O64.webp 640w, /_astro/wiring_in_real.BUqZ197e_1s7K5V.webp 750w, /_astro/wiring_in_real.BUqZ197e_1P9tKd.webp 828w, /_astro/wiring_in_real.BUqZ197e_Z2kJBYB.webp 1000w" alt="Wiring physical" loading="lazy" decoding="async" fetchpriority="auto" sizes="(min-width: 500px) 500px, 100vw" style="--fit: cover; --pos: center;" data-astro-image="constrained" width="500" height="456" class="zoomable">
+<p>It is now possible to extract the firmware. If you are luckier than me, the <code>flashrom</code> tool may
+suffice:</p>
+<div class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="sh"><pre><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">flashrom</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -p</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> serprog:dev=/dev/ttyACM0</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -r</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> hydradump.bin</span></span></code></pre><span class="language ps-1 pe-3 text-sm bg-muted text-muted-foreground">sh</span><button class="copy text-muted-foreground p-1 box-content border rounded bg-primary-foreground" data-code="flashrom -p serprog:dev=/dev/ttyACM0 -r hydradump.bin" onclick="
+          navigator.clipboard.writeText(this.dataset.code);
+          this.classList.add(&#x27;copied&#x27;);
+          setTimeout(() => this.classList.remove(&#x27;copied&#x27;), 2000)
+        "><div class="ready"><svg class="size-5"><use href="/icons/code.svg#mingcute-clipboard-line"></use></svg></div><div class="success hidden"><svg class="size-5"><use href="/icons/code.svg#mingcute-file-check-line"></use></svg></div></button></div>
+<p>This didn’t work. Instead, the native HydraBus firmware features were used:</p>
+<div class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="sh"><pre><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">screen</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /dev/ttyACM0</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#24292E;--shiki-dark:#E1E4E8"> spi</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">spi1</span><span style="color:#24292E;--shiki-dark:#E1E4E8">> [ </span><span style="color:#005CC5;--shiki-dark:#79B8FF">0x9F</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> r:3</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ]</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">/CS</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ENABLED</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">WRITE:</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 0x9F</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">READ:</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 0xC8</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 0x40</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 0x18</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">/CS</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> DISABLED</span></span></code></pre><span class="language ps-1 pe-3 text-sm bg-muted text-muted-foreground">sh</span><button class="copy text-muted-foreground p-1 box-content border rounded bg-primary-foreground" data-code="screen /dev/ttyACM0
+> spi
+spi1> [ 0x9F r:3 ]
+/CS ENABLED
+WRITE: 0x9F
+READ: 0xC8 0x40 0x18
+/CS DISABLED" onclick="
+          navigator.clipboard.writeText(this.dataset.code);
+          this.classList.add(&#x27;copied&#x27;);
+          setTimeout(() => this.classList.remove(&#x27;copied&#x27;), 2000)
+        "><div class="ready"><svg class="size-5"><use href="/icons/code.svg#mingcute-clipboard-line"></use></svg></div><div class="success hidden"><svg class="size-5"><use href="/icons/code.svg#mingcute-file-check-line"></use></svg></div></button></div>
+<p>By consulting the <strong>memory datasheet</strong>, it is possible to determine that this command corresponds to:</p>
+<img src="/_astro/read_identification_spi.BRoynJNO_1Arg9w.webp" alt="Read identification SPI" loading="lazy" decoding="async" fetchpriority="auto" sizes="(min-width: 600px) 600px, 100vw" style="--fit: cover; --pos: center;" data-astro-image="constrained" width="600" height="67" class="zoomable">
+<p>Expected output matches the HydraBus response:</p>
+<img src="/_astro/table_of_id_definitions.CYHJ6sq0_ZcHEp9.webp" srcset="/_astro/table_of_id_definitions.CYHJ6sq0_ErYQa.webp 640w, /_astro/table_of_id_definitions.CYHJ6sq0_s4o9f.webp 750w, /_astro/table_of_id_definitions.CYHJ6sq0_ZcHEp9.webp 800w" alt="Tabme od id definitions" loading="lazy" decoding="async" fetchpriority="auto" sizes="(min-width: 800px) 800px, 100vw" style="--fit: cover; --pos: center;" data-astro-image="constrained" width="800" height="180" class="zoomable">
+<p>SPI communication is confirmed!
+The next step is to read the entire contents of the memory. Also in the datasheet, we find the <code>Read Data</code> command:</p>
+<img src="/_astro/spi_read_data.DAXCf3kT_9w32f.webp" alt="SPI read data" loading="lazy" decoding="async" fetchpriority="auto" sizes="(min-width: 800px) 800px, 100vw" style="--fit: cover; --pos: center;" data-astro-image="constrained" width="800" height="39" class="zoomable">
+<p>Details:</p>
+<img src="/_astro/spi_read_data_spec.BOedt3Kz_17web2.webp" srcset="/_astro/spi_read_data_spec.BOedt3Kz_Z1wHGKp.webp 640w, /_astro/spi_read_data_spec.BOedt3Kz_ZwFyc9.webp 750w" alt="SPI read data spec" loading="lazy" decoding="async" fetchpriority="auto" sizes="(min-width: 900px) 900px, 100vw" style="--fit: cover; --pos: center;" data-astro-image="constrained" width="900" height="463" class="zoomable">
+<p>Without going into detail (perhaps in a future article!), the diagram shows how to send this command
+with Hydrabus:</p>
+<div class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="sh"><pre><code><span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D"># Read 3 bytes from address 0</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">[ </span><span style="color:#005CC5;--shiki-dark:#79B8FF">0x03</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> 0x00:3 ]</span></span></code></pre><span class="language ps-1 pe-3 text-sm bg-muted text-muted-foreground">sh</span><button class="copy text-muted-foreground p-1 box-content border rounded bg-primary-foreground" data-code="# Read 3 bytes from address 0
+[ 0x03 0x00:3 ]" onclick="
+          navigator.clipboard.writeText(this.dataset.code);
+          this.classList.add(&#x27;copied&#x27;);
+          setTimeout(() => this.classList.remove(&#x27;copied&#x27;), 2000)
+        "><div class="ready"><svg class="size-5"><use href="/icons/code.svg#mingcute-clipboard-line"></use></svg></div><div class="success hidden"><svg class="size-5"><use href="/icons/code.svg#mingcute-file-check-line"></use></svg></div></button></div>
+<p>Manual full read would be tedious — so let’s use the <code>pyHydrabus</code> Python bindings.</p>
+<div class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="python"><pre><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">import</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> pyHydrabus</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">MAX_CHUNK</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 4096</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">def</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> get_edecid</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(hb):</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    id_bytes </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> hb.write_read(</span><span style="color:#D73A49;--shiki-dark:#F97583">b</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"</span><span style="color:#005CC5;--shiki-dark:#79B8FF">\x9f</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">3</span><span style="color:#24292E;--shiki-dark:#E1E4E8">)</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    print</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"JEDEC ID:"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, id_bytes.hex())</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">def</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> read_flash_full</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(hb, size</span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#005CC5;--shiki-dark:#79B8FF">16</span><span style="color:#D73A49;--shiki-dark:#F97583"> *</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 1024</span><span style="color:#D73A49;--shiki-dark:#F97583"> *</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 1024</span><span style="color:#24292E;--shiki-dark:#E1E4E8">):</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    data </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> bytearray</span><span style="color:#24292E;--shiki-dark:#E1E4E8">()</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    for</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> addr </span><span style="color:#D73A49;--shiki-dark:#F97583">in</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> range</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#005CC5;--shiki-dark:#79B8FF">0</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, size, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">MAX_CHUNK</span><span style="color:#24292E;--shiki-dark:#E1E4E8">):</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        to_read </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> min</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#005CC5;--shiki-dark:#79B8FF">MAX_CHUNK</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, size </span><span style="color:#D73A49;--shiki-dark:#F97583">-</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> addr)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        cmd </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> bytes</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">            [</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">                0x</span><span style="color:#005CC5;--shiki-dark:#79B8FF">03</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">                (addr </span><span style="color:#D73A49;--shiki-dark:#F97583">>></span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 16</span><span style="color:#24292E;--shiki-dark:#E1E4E8">) </span><span style="color:#D73A49;--shiki-dark:#F97583">&#x26;</span><span style="color:#D73A49;--shiki-dark:#F97583"> 0x</span><span style="color:#005CC5;--shiki-dark:#79B8FF">FF</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">                (addr </span><span style="color:#D73A49;--shiki-dark:#F97583">>></span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 8</span><span style="color:#24292E;--shiki-dark:#E1E4E8">) </span><span style="color:#D73A49;--shiki-dark:#F97583">&#x26;</span><span style="color:#D73A49;--shiki-dark:#F97583"> 0x</span><span style="color:#005CC5;--shiki-dark:#79B8FF">FF</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">                addr </span><span style="color:#D73A49;--shiki-dark:#F97583">&#x26;</span><span style="color:#D73A49;--shiki-dark:#F97583"> 0x</span><span style="color:#005CC5;--shiki-dark:#79B8FF">FF</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">            ]</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        )</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        chunk </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> hb.write_read(cmd, to_read)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        data.extend(chunk)</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">        print</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#D73A49;--shiki-dark:#F97583">f</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"Read </span><span style="color:#005CC5;--shiki-dark:#79B8FF">{len</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(chunk)</span><span style="color:#005CC5;--shiki-dark:#79B8FF">}</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> bytes from 0x</span><span style="color:#005CC5;--shiki-dark:#79B8FF">{</span><span style="color:#24292E;--shiki-dark:#E1E4E8">addr</span><span style="color:#D73A49;--shiki-dark:#F97583">:06X</span><span style="color:#005CC5;--shiki-dark:#79B8FF">}</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    return</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> bytes</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(data)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">if</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> __name__</span><span style="color:#D73A49;--shiki-dark:#F97583"> ==</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> "__main__"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">	hb </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> pyHydrabus.SPI()</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">	hb.set_speed(hb.</span><span style="color:#005CC5;--shiki-dark:#79B8FF">SPI1_SPEED_10M</span><span style="color:#24292E;--shiki-dark:#E1E4E8">)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">	get_edecid(hb)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">	data </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> read_flash_full(hb)</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">	with</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> open</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"hydradump.bin"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"wb"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">) </span><span style="color:#D73A49;--shiki-dark:#F97583">as</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> f:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">	    f.write(data)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">	hb.close()</span></span></code></pre><span class="language ps-1 pe-3 text-sm bg-muted text-muted-foreground">python</span><button class="copy text-muted-foreground p-1 box-content border rounded bg-primary-foreground" data-code="import pyHydrabus
+
+MAX_CHUNK = 4096
+
+def get_edecid(hb):
+    id_bytes = hb.write_read(b&#x22;\x9f&#x22;, 3)
+    print(&#x22;JEDEC ID:&#x22;, id_bytes.hex())
+
+def read_flash_full(hb, size=16 * 1024 * 1024):
+    data = bytearray()
+    for addr in range(0, size, MAX_CHUNK):
+        to_read = min(MAX_CHUNK, size - addr)
+        cmd = bytes(
+            [
+                0x03,
+                (addr >> 16) &#x26; 0xFF,
+                (addr >> 8) &#x26; 0xFF,
+                addr &#x26; 0xFF,
+            ]
+        )
+        chunk = hb.write_read(cmd, to_read)
+        data.extend(chunk)
+        print(f&#x22;Read {len(chunk)} bytes from 0x{addr:06X}&#x22;)
+
+    return bytes(data)
+
+if __name__ == &#x22;__main__&#x22;:
+	hb = pyHydrabus.SPI()
+	hb.set_speed(hb.SPI1_SPEED_10M)
+
+	get_edecid(hb)
+
+	data = read_flash_full(hb)
+	with open(&#x22;hydradump.bin&#x22;, &#x22;wb&#x22;) as f:
+	    f.write(data)
+
+	hb.close()" onclick="
+          navigator.clipboard.writeText(this.dataset.code);
+          this.classList.add(&#x27;copied&#x27;);
+          setTimeout(() => this.classList.remove(&#x27;copied&#x27;), 2000)
+        "><div class="ready"><svg class="size-5"><use href="/icons/code.svg#mingcute-clipboard-line"></use></svg></div><div class="success hidden"><svg class="size-5"><use href="/icons/code.svg#mingcute-file-check-line"></use></svg></div></button></div>
+<p>Check the result using <code>binwalk</code>:</p>
+<img src="/_astro/binwalk_check_dump_flash.De5I0tzo_Z1PwvzH.webp" srcset="/_astro/binwalk_check_dump_flash.De5I0tzo_ZzfBt0.webp 640w, /_astro/binwalk_check_dump_flash.De5I0tzo_2dW773.webp 750w" alt="Binwalk check dump" loading="lazy" decoding="async" fetchpriority="auto" sizes="(min-width: 900px) 900px, 100vw" style="--fit: cover; --pos: center;" data-astro-image="constrained" width="900" height="140" class="zoomable">
+<p>The flash memory was successfully extracted, and much more quickly than with the
+<a href="#531-extraction-via-uart">UART</a></p>
+<p>Here, it took less than a minute, compared to several hours with other methods:</p>
+<div class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="sh"><pre><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">python</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> dump_flash.py</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">0,05s</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> user</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 0,09s</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> system</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 0%</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> cpu</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 51,720</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> total</span></span></code></pre><span class="language ps-1 pe-3 text-sm bg-muted text-muted-foreground">sh</span><button class="copy text-muted-foreground p-1 box-content border rounded bg-primary-foreground" data-code="python dump_flash.py
+0,05s user 0,09s system 0% cpu 51,720 total" onclick="
+          navigator.clipboard.writeText(this.dataset.code);
+          this.classList.add(&#x27;copied&#x27;);
+          setTimeout(() => this.classList.remove(&#x27;copied&#x27;), 2000)
+        "><div class="ready"><svg class="size-5"><use href="/icons/code.svg#mingcute-clipboard-line"></use></svg></div><div class="success hidden"><svg class="size-5"><use href="/icons/code.svg#mingcute-file-check-line"></use></svg></div></button></div>
+<h2 id="6-conclusion">6. Conclusion<a class="anchor" href="#6-conclusion">#</a></h2>
+<p>This article covered three methods to extract firmware content:</p>
+<ul>
+<li>UART</li>
+<li>SPI</li>
+<li>JTAG</li>
+</ul>
+<p>Despite various issues encountered, it was possible to successfully extract the firmware without too much trouble.
+The next article will focus on analyzing the recovered firmware and how to retrieve the <code>root</code> password for authentication.</p>
+<h2 id="ressources">Ressources<a class="anchor" href="#ressources">#</a></h2>
+<ul>
+<li><a href="https://www.youtube.com/watch?v=6_Q663YkyXE&#x26;list=PLoFdAHrZtKkhcd9k8ZcR4th8Q8PNOx7iU&#x26;index=2" rel="nofollow noopener noreferrer" target="_blank">Make Me Hack<span> ↗</span></a></li>
+<li><a href="https://www.hardbreak.wiki/hardware-hacking/interface-interaction/uart/uart-from-start-to-finish" rel="nofollow noopener noreferrer" target="_blank">HardBreak<span> ↗</span></a></li>
+<li><a href="https://lucidar.me/fr/serialib/most-used-baud-rates-table/" rel="nofollow noopener noreferrer" target="_blank">Lucidar.me<span> ↗</span></a></li>
+<li><a href="https://learn.sparkfun.com/tutorials/serial-communication" rel="nofollow noopener noreferrer" target="_blank">sparkfun<span> ↗</span></a></li>
+<li><a href="https://github.com/ReFirmLabs/binwalk/wiki" rel="nofollow noopener noreferrer" target="_blank">binwalk<span> ↗</span></a></li>
+</ul>     </div> </article> </main> <div class="bottom mt-6 items-start gap-x-10 md:flex astro-scuu7fyy">  <div class="mt-8 flex-1 text-muted-foreground md:min-w-[50ch] astro-scuu7fyy"> <div class="relative flex flex-col gap-y-2 rounded-xl border px-3 sm:px-4 py-2 sm:py-3"> <svg aria-hidden="true" class="absolute end-4 top-4 size-20 opacity-10 astro-hn7k2gay" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><g fill="none"><path d="m12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.018-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"/><path fill="currentColor" d="M12 2c5.523 0 10 4.477 10 10s-4.477 10-10 10S2 17.523 2 12S6.477 2 12 2m0 2a8 8 0 1 0 0 16a8 8 0 0 0 0-16m0 3a5 5 0 0 1 3.75 1.692a1 1 0 1 1-1.5 1.324a3 3 0 1 0 0 3.968a1 1 0 1 1 1.5 1.324A5 5 0 1 1 12 7"/></g></svg>   <div class="flex flex-col"> <div class="font-medium text-foreground">[Silvercrest Smart Home] Firmware Extraction</div> <div class="text-sm">https://0xnyaru.github.io/blog/silvercrest-zigbee-gateway/01---firmware-extraction</div> </div>  <div class="flex flex-row flex-wrap justify-start gap-x-5 gap-y-1 sm:gap-x-8"> <div class="flex gap-x-2 sm:flex-col"> <span>Author</span> <span class="text-sm text-foreground max-sm:place-self-center">Nyaru</span> </div> <div class="flex gap-x-2 sm:min-w-16 sm:flex-col"> <span>Published at</span> <span class="text-sm text-foreground max-sm:place-self-center"> August 6, 2025 </span> </div> <div class="flex gap-x-2 sm:flex-col"> <span>Copyright</span> <a class="text-sm text-foreground max-sm:place-self-center" href="https://creativecommons.org/licenses/by/4.0/" target="_blank">
+CC BY-NC-SA 4.0
+</a> </div> </div>  <div class="relative"> <div class="flex flex-row gap-3"> <button id="copy-link" class="group rounded-full bg-muted p-1 text-muted-foreground transition-colors hover:text-primary sm:p-1.5"> <svg aria-hidden="true" class="size-5 astro-hn7k2gay" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><g fill="none"><path d="m12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.018-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"/><path fill="currentColor" d="M16.243 9.878a1 1 0 0 1 1.32-.083l.094.083L19.778 12a5.5 5.5 0 0 1-7.596 7.952L12 19.778l-2.121-2.121a1 1 0 0 1 1.32-1.498l.094.083l2.121 2.122a3.5 3.5 0 0 0 5.091-4.8l-.141-.15l-2.121-2.121a1 1 0 0 1 0-1.415M9.17 9.171a1 1 0 0 1 1.32-.083l.095.083l4.242 4.243a1 1 0 0 1-1.32 1.497l-.094-.083l-4.243-4.242a1 1 0 0 1 0-1.415m-4.95-4.95a5.5 5.5 0 0 1 7.597-.173l.182.174l2.121 2.12A1 1 0 0 1 12.8 7.84l-.094-.083l-2.121-2.121a3.5 3.5 0 0 0-5.091 4.8l.141.15l2.121 2.12a1 1 0 0 1-1.32 1.498l-.094-.083L4.222 12a5.5 5.5 0 0 1 0-7.778Z"/></g></svg>  </button> <button id="get-qrcode" class="group rounded-full bg-muted p-1 text-muted-foreground transition-colors hover:text-primary sm:p-1.5"> <svg aria-hidden="true" class="size-5 astro-hn7k2gay" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><g fill="none"><path d="m12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.018-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"/><path fill="currentColor" d="M11 3a2 2 0 0 1 1.995 1.85L13 5v6a2 2 0 0 1-1.85 1.995L11 13H5a2 2 0 0 1-1.995-1.85L3 11V5a2 2 0 0 1 1.85-1.995L5 3zm0 2H5v6h6zM8.5 7a.5.5 0 0 1 .492.41L9 7.5v1a.5.5 0 0 1-.41.492L8.5 9h-1a.5.5 0 0 1-.492-.41L7 8.5v-1a.5.5 0 0 1 .41-.492L7.5 7zM21 5a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v2a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2zm-4 0h2v2h-2zM7 15a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2zm0 2H5v2h2zm14 0a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v2a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2zm-4 0h2v2h-2zm-2-5a1 1 0 0 1 1-1h4a1 1 0 1 1 0 2h-4a1 1 0 0 1-1-1m-2 4a1 1 0 1 0-2 0v4a1 1 0 1 0 2 0z"/></g></svg>  </button> <a href="http://service.weibo.com/share/share.php?url=https://0xnyaru.github.io/blog/silvercrest-zigbee-gateway/01---firmware-extraction&title=[Silvercrest Smart Home] Firmware Extraction&pic=" target="_blank" id="share-weibo" class="group rounded-full bg-muted p-1 text-muted-foreground transition-colors hover:text-primary sm:p-1.5"> <svg aria-hidden="true" class="size-5 astro-hn7k2gay" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><g fill="none"><path d="m12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.018-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"/><path fill="currentColor" d="M13.12 5.815c.55.537.826 1.24.863 1.992c1.675-.502 3.045-.362 3.937.5c.848.82.937 1.967.617 2.964C19.9 11.961 21 13.058 21 14.715c0 1.93-1.256 3.526-2.962 4.586C16.318 20.371 14.004 21 11.5 21s-4.818-.63-6.538-1.699C3.256 18.241 2 16.646 2 14.715c0-1.762.842-3.589 2.05-5.156a14.6 14.6 0 0 1 4.723-3.954c1.635-.847 3.286-.828 4.347.21m-1.399 1.43c-.213-.21-.829-.485-2.028.136a12.6 12.6 0 0 0-4.06 3.4C4.576 12.154 4 13.558 4 14.715c0 .988.647 2.035 2.018 2.888C7.374 18.446 9.309 19 11.5 19c2.19 0 4.127-.554 5.482-1.397c1.371-.853 2.018-1.9 2.018-2.888c0-.711-.56-1.439-2.16-1.991a1 1 0 0 1-.473-1.546c.495-.66.355-1.248.163-1.433l-.048-.04l-.067-.042c-.337-.186-1.274-.368-3.335.661a1 1 0 0 1-1.347-1.33c.444-.92.225-1.517-.012-1.75ZM17 3c1.576 0 3.128.643 4.243 1.757A6.05 6.05 0 0 1 23 9a1 1 0 1 1-2 0c0-1.05-.429-2.086-1.172-2.828A4.04 4.04 0 0 0 17 5a1 1 0 1 1 0-2"/></g></svg>  </a><a href="https://x.com/intent/tweet?text='[Silvercrest Smart Home] Firmware Extraction'&url='https://0xnyaru.github.io/blog/silvercrest-zigbee-gateway/01---firmware-extraction'&via='Nyaru'" target="_blank" id="share-x" class="group rounded-full bg-muted p-1 text-muted-foreground transition-colors hover:text-primary sm:p-1.5"> <svg aria-hidden="true" class="size-5 astro-hn7k2gay" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><g fill="none" fill-rule="evenodd"><path d="m12.594 23.258l-.012.002l-.071.035l-.02.004l-.014-.004l-.071-.036q-.016-.004-.024.006l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.016-.018m.264-.113l-.014.002l-.184.093l-.01.01l-.003.011l.018.43l.005.012l.008.008l.201.092q.019.005.029-.008l.004-.014l-.034-.614q-.005-.019-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.003-.011l.018-.43l-.003-.012l-.01-.01z"/><path fill="currentColor" d="M19.753 4.659a1 1 0 0 0-1.506-1.317l-5.11 5.84L8.8 3.4A1 1 0 0 0 8 3H4a1 1 0 0 0-.8 1.6l6.437 8.582l-5.39 6.16a1 1 0 0 0 1.506 1.317l5.11-5.841L15.2 20.6a1 1 0 0 0 .8.4h4a1 1 0 0 0 .8-1.6l-6.437-8.582l5.39-6.16ZM16.5 19L6 5h1.5L18 19z"/></g></svg>  </a><a href="https://bsky.app/intent/compose?text=[Silvercrest Smart Home] Firmware Extraction%0Ahttps://0xnyaru.github.io/blog/silvercrest-zigbee-gateway/01---firmware-extraction" target="_blank" id="share-bluesky" class="group rounded-full bg-muted p-1 text-muted-foreground transition-colors hover:text-primary sm:p-1.5"> <svg aria-hidden="true" class="size-5 astro-hn7k2gay" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><g fill="none" fill-rule="evenodd"><path d="m12.594 23.258l-.012.002l-.071.035l-.02.004l-.014-.004l-.071-.036q-.016-.004-.024.006l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.016-.018m.264-.113l-.014.002l-.184.093l-.01.01l-.003.011l.018.43l.005.012l.008.008l.201.092q.019.005.029-.008l.004-.014l-.034-.614q-.005-.019-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.003-.011l.018-.43l-.003-.012l-.01-.01z"/><path fill="currentColor" d="M4.747 5.105a.94.94 0 0 0-.41.892l.314 3.287A3 3 0 0 0 7.637 12H9a1 1 0 0 1 .371 1.928l-2.34.937c-.885.354-1.122 1.32-.664 1.932c.288.384.576.731.84.996c.233.233.532.485.865.74c.619.475 1.625.214 1.94-.734l1.04-3.115a1 1 0 0 1 1.897 0l1.038 3.115c.316.948 1.322 1.21 1.941.735a9 9 0 0 0 .865-.741c.265-.265.553-.612.84-.996c.458-.612.222-1.578-.664-1.932l-2.34-.937A1 1 0 0 1 15 12h1.363a3 3 0 0 0 2.986-2.716l.314-3.287a.94.94 0 0 0-.41-.892a.75.75 0 0 0-.858-.001c-2.645 1.708-4.05 3.442-5.5 6.343a1 1 0 0 1-1.79 0c-1.45-2.901-2.855-4.635-5.5-6.343a.75.75 0 0 0-.858.001m-2.4 1.082C2.13 3.913 4.567 2.053 6.69 3.424C9.13 5 10.662 6.639 12 8.9c1.338-2.261 2.87-3.9 5.31-5.476c2.123-1.371 4.56.49 4.344 2.763l-.314 3.287a5 5 0 0 1-2.783 4.02c1.329 1.039 1.818 2.978.677 4.502c-.317.423-.669.853-1.027 1.211c-.317.317-.69.628-1.062.914c-1.88 1.441-4.375.35-5.055-1.69l-.09-.269l-.09.27c-.68 2.04-3.175 3.13-5.055 1.689a11 11 0 0 1-1.062-.914a11.5 11.5 0 0 1-1.027-1.211c-1.141-1.524-.651-3.463.678-4.502a5 5 0 0 1-2.784-4.02z"/></g></svg>  </a> </div> <div id="qrcode-container" class="absolute z-10 -mt-2 box-content max-h-0 max-w-44 overflow-hidden rounded-xl border bg-muted p-4 opacity-0 transition-all duration-300 ease-in-out aria-expanded:max-h-44 aria-expanded:translate-y-4 aria-expanded:opacity-100" aria-expanded="false"></div> <script src="https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js"></script> <script>(function(){const content = undefined;
+
+  const renderContent = content ?? window.location.href
+  // Load qrcode
+  function loadQRcode(qrcodeContainer) {
+    if (!qrcodeContainer) throw new Error('qrcode container not found')
+    if (qrcodeContainer.innerHTML !== '') return
+    new QRCode(qrcodeContainer, renderContent)
+  }
+  const qrcodeContainer = document.getElementById('qrcode-container')
+  if (!qrcodeContainer) throw new Error('qrcode container not found')
+  loadQRcode(qrcodeContainer)
+})();</script> </div> </div> <div class="mx-6 rounded-b-xl border border-t-0 px-3 pb-1.5 pt-1 sm:mx-8 sm:px-4"> <a href="/projects#sponsorship" class="flex items-center justify-between text-muted-foreground no-underline" target="_blank"> <span>Buy me a cup of coffee ☕.</span> <svg aria-hidden="true" class="box-content size-5 p-1 astro-hn7k2gay" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><g fill="none"><path d="m12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.018-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"/><path fill="currentColor" d="M17 2a3 3 0 0 1 3 3v12a1 1 0 0 1 .351 1.936l-8 3a1 1 0 0 1-.702 0l-8-3A1 1 0 0 1 4 17V5a3 3 0 0 1 3-3zm0 2H7a1 1 0 0 0-.993.883L6 5v12.682l6 2.25l6-2.25V5a1 1 0 0 0-.883-.993zm-5 1a1 1 0 0 1 .993.883L13 6v1h2a1 1 0 0 1 .117 1.993L15 9h-5a.5.5 0 0 0-.09.992L10 10h4a2.5 2.5 0 0 1 .164 4.995L14 15h-1v1a1 1 0 0 1-1.993.117L11 16v-1H9a1 1 0 0 1-.117-1.993L9 13h5a.5.5 0 0 0 .09-.992L14 12h-4a2.5 2.5 0 0 1-.164-4.995L10 7h1V6a1 1 0 0 1 1-1"/></g></svg>  </a> </div> <script type="module" src="/_astro/Copyright.astro_astro_type_script_index_0_lang.xahjMH5e.js"></script> <div class="flex max-sm:flex-col sm:justify-between gap-2 mt-3 sm:mt-6"> <span class="min-w-0"> <a href="/blog/silvercrest-zigbee-gateway/02---firmware-analysis" class="group inline-flex items-center gap-x-2 rounded-xl px-4 py-2 no-underline transition-colors duration-300 hover:bg-muted max-sm:max-w-[80%] sm:flex"> <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 rotate-180 stroke-muted-foreground transition-colors group-hover:stroke-primary"> <line x1="5" y1="12" x2="19" y2="12" class="translate-x-4 scale-x-0 transition-all duration-300 ease-in-out group-hover:translate-x-1 group-hover:scale-x-100"></line> <polyline points="12 5 19 12 12 19" class="translate-x-0 transition-all duration-300 ease-in-out group-hover:translate-x-1"></polyline> </svg> <p class="truncate font-medium transition-colors">[Silvercrest Smart Home] Firmware analysis</p> </a> </span> <span class="min-w-0"> <a href="/blog/silvercrest-zigbee-gateway/00---hardware-analysis-of-the-gateway" class="group inline-flex items-center gap-x-2 rounded-xl px-4 py-2 text-right no-underline transition-colors duration-300 hover:bg-muted max-sm:float-end max-sm:max-w-[80%] sm:flex"> <p class="truncate font-medium transition-colors">[Silvercrest Smart Home] Hardware Analysis of the Gateway</p> <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 stroke-muted-foreground transition-colors group-hover:stroke-primary"> <line x1="5" y1="12" x2="19" y2="12" class="translate-x-4 scale-x-0 transition-all duration-300 ease-in-out group-hover:translate-x-1 group-hover:scale-x-100"></line> <polyline points="12 5 19 12 12 19" class="translate-x-0 transition-all duration-300 ease-in-out group-hover:translate-x-1"></polyline> </svg> </a> </span> </div>  </div> <div class="min-w-48 basis-60 astro-scuu7fyy">  </div> </div> <div class="z-10 group fixed bottom-8 end-4 transition-all flex flex-col gap-y-4 sm:end-8 astro-jxfdehre" id="action-buttons"> <button aria-label="Toggle sidebar" class="size-10 flex items-center justify-center rounded-full border-2 border-transparent bg-muted text-muted-foreground duration-300 hover:border-border/75 md:hidden sm:size-12 astro-scuu7fyy" id="sidebar-btn"> <svg aria-hidden="true" class="astro-scuu7fyy astro-hn7k2gay" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><g fill="none"><path d="m12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.018-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"/><path fill="currentColor" d="M4.5 17.5a1.5 1.5 0 1 1 0 3a1.5 1.5 0 0 1 0-3M20 18a1 1 0 1 1 0 2H9a1 1 0 1 1 0-2zM4.5 10.5a1.5 1.5 0 1 1 0 3a1.5 1.5 0 0 1 0-3M20 11a1 1 0 0 1 .117 1.993L20 13H9a1 1 0 0 1-.117-1.993L9 11zM4.5 3.5a1.5 1.5 0 1 1 0 3a1.5 1.5 0 0 1 0-3M20 4a1 1 0 0 1 .117 1.993L20 6H9a1 1 0 0 1-.117-1.993L9 4z"/></g></svg>  </button> <button aria-label="Back to Top" class="relative size-10 flex items-center justify-center rounded-full border-2 border-transparent bg-muted text-muted-foreground duration-300 hover:border-border/75 sm:size-12 opacity-0 astro-jxfdehre" id="to-top-btn"> <div class="top-text absolute bottom-0 end-0 start-0 top-0 flex items-center justify-center group-[.ended]:opacity-0 astro-jxfdehre"> <span class="text astro-jxfdehre">10</span> <span class="text-xs astro-jxfdehre">%</span> </div> <svg aria-hidden="true" class="top-icon group-[.ended]:opacity-100 astro-jxfdehre astro-hn7k2gay" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><g fill="none" fill-rule="evenodd"><path d="M24 0v24H0V0zM12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.019-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"/><path fill="currentColor" d="M11.293 8.293a1 1 0 0 1 1.414 0l5.657 5.657a1 1 0 0 1-1.414 1.414L12 10.414l-4.95 4.95a1 1 0 0 1-1.414-1.414z"/></g></svg>  </button> </div> <script>(function(){const headerName = "content-header";
+const contentName = "content";
+const needPercent = true;
+
+  const actionBtns = document.getElementById('action-buttons')
+  const scrollBtn = document.getElementById('to-top-btn')
+  const scrollPercentEl = scrollBtn.children[0].children[0]
+  const targetHeader = document.getElementById(headerName)
+  const articleElement = document.getElementById(contentName)
+
+  // scroll to top
+  function callback(entries) {
+    entries.forEach((entry) => {
+      // only show the action buttons when the heading is out of view
+      actionBtns.classList.toggle('show', !entry.isIntersecting)
+    })
+  }
+  scrollBtn.addEventListener('click', () => {
+    document.documentElement.scrollTo({ behavior: 'smooth', top: 0 })
+  })
+  if (targetHeader) {
+    const observer = new IntersectionObserver(callback)
+    observer.observe(targetHeader)
+  } else {
+    console.error(`Element with ID ${headerName} not found.`)
+  }
+  if (needPercent) {
+    // scroll percentage
+    const scrollHeight = articleElement.scrollHeight // total height
+    const articleTop = articleElement.offsetTop // article top
+    const clientHeight = document.documentElement.clientHeight // client height
+
+    function calculateScrollPercent() {
+      const scrollTop = document.documentElement.scrollTop || document.body.scrollTop
+      if (scrollTop < articleTop) return
+      return Math.round(((scrollTop - articleTop) / (scrollHeight - clientHeight)) * 100)
+    }
+
+    document.addEventListener('scroll', () => {
+      const scrollPercent = calculateScrollPercent()
+      if (scrollPercent === undefined) return
+      scrollPercentEl.innerText = scrollPercent.toString()
+
+      // If percent is 100, percent won't need to show
+      actionBtns.classList.toggle('ended', scrollPercent > 100)
+    })
+  } else {
+    actionBtns.classList.add('ended')
+  }
+})();</script>   <footer class="mx-auto mb-5 mt-16"> <div class="border-t pt-5"> <div class="flex items-center gap-y-3 max-sm:flex-col sm:justify-between sm:gap-y-0"> <div class="flex items-center gap-x-4 gap-y-2 text-muted-foreground max-sm:flex-col [&_a]:text-foreground">    <div> © 2025 Nyaru  </div> <span> <a href="https://github.com/withastro/astro" target="_blank">
+Astro
+</a>
+&
+<a href="https://github.com/cworld1/astro-theme-pure" target="_blank">
+Pure
+</a>
+theme powered
+</span> </div>  <div class="flex items-center gap-x-4">  </div> </div> </div> </footer> </div>   </body> </html> <script type="module">const d=document.getElementById("sidebar-btn"),e=document.getElementById("sidebar"),s=document.getElementById("sidebar-shade");s&&s.addEventListener("click",()=>{t()});function t(){e&&e.classList.contains("show")?(e.classList.remove("show"),s.style.display="none"):e&&(e.classList.add("show"),s.style.display="block")}d?.addEventListener("click",()=>{t()});</script>  <script src="https://cdn.jsdelivr.net/npm/medium-zoom/dist/pure/medium-zoom.min.umd.js"></script> <script>(function(){const selector = ".prose .zoomable";
+const background = "hsl(var(--background) / 0.8)";
+
+  mediumZoom(selector, { background })
+})();</script> 
