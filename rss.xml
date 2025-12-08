@@ -1,0 +1,1697 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="/scripts/pretty-feed-v3.xsl" type="text/xsl"?><rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:h="http://www.w3.org/TR/html4/"><channel><title>Nyaru Security</title><description>Offensive security, hardware hacking, IoT pentesting, and reverse engineering</description><link>https://0xnyaru.github.io</link><item><title>[Imou Camera] Hardware Analysis of the camera</title><link>https://0xnyaru.github.io/blog/imou-camera/03---hardware-analysis-of-the-camera</link><guid isPermaLink="true">https://0xnyaru.github.io/blog/imou-camera/03---hardware-analysis-of-the-camera</guid><pubDate>Sun, 07 Dec 2025 08:06:36 GMT</pubDate><content:encoded>&lt;p&gt;import { Image } from &apos;astro:assets&apos;&lt;/p&gt;
+&lt;p&gt;import { Aside, Spoiler } from &apos;astro-pure/user&apos;&lt;/p&gt;
+&lt;p&gt;import camera_before_teardown from &apos;images/hardware/camera_before_teardown.png&apos;
+import camera_hw_identification_1 from &apos;images/hardware/camera_hw_identification_1.png&apos;
+import camera_hw_identification_2 from &apos;images/hardware/camera_hw_identification_2.png&apos;
+import camera_hw_identification_3 from &apos;images/hardware/camera_hw_identification_3.png&apos;
+import camera_hw_identification_global from &apos;images/hardware/camera_hw_identification_global.png&apos;
+import camera_teardown_1 from &apos;images/hardware/camera_teardown_1.png&apos;
+import camera_teardown_2 from &apos;images/hardware/camera_teardown_2.png&apos;
+import camera_teardown_3 from &apos;images/hardware/camera_teardown_3.png&apos;
+import camera_teardown_4 from &apos;images/hardware/camera_teardown_4.png&apos;
+import camera_teardown_5 from &apos;images/hardware/camera_teardown_5.png&apos;
+import pulse_view_identify_uart from &apos;images/hardware/pulse_view_identify_uart.png&apos;&lt;/p&gt;
+&lt;h2&gt;2.1 Introduction&lt;/h2&gt;
+&lt;p&gt;After extracting the firmware update from the Imou Ranger 2C camera and analyzing the behavior of the Imou Life mobile application, the next step is to examine the hardware side of the device.&lt;/p&gt;
+&lt;p&gt;This section focuses on a &lt;strong&gt;full hardware analysis&lt;/strong&gt;: disassembling the camera, identifying electronic components, mapping physical interfaces (UART, JTAG, etc.), and evaluating the potential for low-level system access.
+The goal is to document the internal architecture, identify potential weaknesses or exploitable entry points, and better understand the hardware design of the device from a security research perspective.&lt;/p&gt;
+&lt;h2&gt;2.2 Physical teardown of the camera&lt;/h2&gt;
+&lt;p&gt;When unboxing the camera, it looks roughly like this:&lt;/p&gt;
+&lt;p&gt;&amp;#x3C;Image
+src={camera_before_teardown}
+alt=&apos;camera_before_teardown&apos;
+class=&apos;zoomable&apos;
+layout=&apos;fixed&apos;
+width={camera_before_teardown.width / 2}
+height={camera_before_teardown.height / 2}
+/&gt;&lt;/p&gt;
+&lt;p&gt;Opening it is fairly simple. The previous picture shows that the enclosure is held together by clips. Applying gentle pressure is enough to remove the optical assembly of the camera.&lt;/p&gt;
+&lt;p&gt;However, this upper part does not contain the components we are looking for, so the camera needs to be reassembled.&lt;br&gt;
+To remove the top shell—the part containing the camera module— must rotate the head fully to one side. The plastic cover will then unclip by itself.&lt;/p&gt;
+&lt;p&gt;&amp;#x3C;Image
+src={camera_teardown_2}
+alt=&apos;camera_teardown_2&apos;
+class=&apos;zoomable&apos;
+layout=&apos;fixed&apos;
+width={camera_teardown_2.width / 2}
+height={camera_teardown_2.height / 2}
+/&gt;&lt;/p&gt;
+&lt;p&gt;On the side, there are two latches like this one (sorry for the picture quality—without zoom it was difficult to capture clearly):&lt;/p&gt;
+&lt;p&gt;&amp;#x3C;Image
+src={camera_teardown_3}
+alt=&apos;camera_teardown_3&apos;
+class=&apos;zoomable&apos;
+layout=&apos;full-width&apos;
+width={camera_teardown_3.width / 4}
+height={camera_teardown_3.height / 4}
+/&gt;&lt;/p&gt;
+&lt;p&gt;Simply push them outward to unclip the assembly.&lt;/p&gt;
+&lt;p&gt;The PCB is held in place with screws, which need to be removed in order to inspect both sides of the board.
+That said, the opposite side does not contain anything particularly interesting.&lt;/p&gt;
+&lt;p&gt;In the previous picture, the large white square is a heatsink. Underneath, there is an additional thermal dissipation plate:&lt;/p&gt;
+&lt;p&gt;&amp;#x3C;Image
+src={camera_teardown_5}
+alt=&apos;camera_teardown_5&apos;
+class=&apos;zoomable&apos;
+layout=&apos;full-width&apos;
+width={camera_teardown_5.width / 2}
+height={camera_teardown_5.height / 2}
+/&gt;&lt;/p&gt;
+&lt;h2&gt;2.3 Component identification&lt;/h2&gt;
+&lt;p&gt;Time to identify the key components found on the board.&lt;/p&gt;
+&lt;p&gt;Below is a global view of the PCB:&lt;/p&gt;
+&lt;p&gt;&amp;#x3C;Image
+src={camera_hw_identification_global}
+alt=&apos;camera_hw_identification_global&apos;
+class=&apos;zoomable&apos;
+layout=&apos;full-width&apos;
+width={camera_hw_identification_global.width / 1.5}
+height={camera_hw_identification_global.height / 1.5}
+/&gt;&lt;/p&gt;
+&lt;p&gt;Three areas have been highlighted:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Red: the SoC&lt;/li&gt;
+&lt;li&gt;Green: the debug ports&lt;/li&gt;
+&lt;li&gt;Cyan: the Wi-Fi / Bluetooth module&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;For the Wi-Fi / Bluetooth board, here are the visible markings:&lt;/p&gt;
+&lt;p&gt;&amp;#x3C;Image
+src={camera_hw_identification_1}
+alt=&apos;camera_hw_identification_1&apos;
+class=&apos;zoomable&apos;
+layout=&apos;full-width&apos;
+width={camera_hw_identification_1.width / 2}
+height={camera_hw_identification_1.height / 2}
+/&gt;&lt;/p&gt;
+&lt;p&gt;And here is the SoC:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;h2&gt;2.4 Component analysis&lt;/h2&gt;
+&lt;h3&gt;2.4.1 ATBM6062&lt;/h3&gt;
+&lt;p&gt;According to its &lt;a href=&quot;https://fcc.report/FCC-ID/2BAVSATBM6062/6759270.pdf&quot;&gt;datasheet&lt;/a&gt;, the &lt;strong&gt;ATBM6062&lt;/strong&gt; is indeed a 2.4 GHz Wi-Fi and Bluetooth LE 5.0 module.&lt;br&gt;
+Unfortunately, documentation for this component is very limited, and there is little more to extract from publicly available sources.&lt;/p&gt;
+&lt;h3&gt;2.4.2 SSC332&lt;/h3&gt;
+&lt;p&gt;The &lt;strong&gt;SSC332&lt;/strong&gt; is a &lt;strong&gt;multimedia SoC&lt;/strong&gt; from Sigmastar (formerly Sigma Designs, later spun off from MStar). It is commonly used in low-cost IP cameras.&lt;/p&gt;
+&lt;p&gt;While no public datasheet for this specific model appears to exist, a closely related model—the &lt;a href=&quot;https://linux-chenxing.org/infinity6/ssc333_pb_v01.pdf&quot;&gt;SSC333&lt;/a&gt; documented.&lt;/p&gt;
+&lt;p&gt;Its characteristics include:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;ARM Cortex-A7 single-core CPU&lt;/li&gt;
+&lt;li&gt;Support for various encoding/processing pipelines&lt;/li&gt;
+&lt;li&gt;Multiple interfaces: UART, SPI, I²C, GPIO&lt;/li&gt;
+&lt;li&gt;Several boot options:
+&lt;ul&gt;
+&lt;li&gt;SPI NOR / NAND&lt;/li&gt;
+&lt;li&gt;SD card&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;Embedded SPI NOR/NAND flash&lt;/li&gt;
+&lt;li&gt;512 MB DDR2 memory&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Block diagram of the chip:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;h2&gt;2.5 Debug port identification&lt;/h2&gt;
+&lt;p&gt;Since the processor is ARM-based, the debug pins could correspond to UART or SWD.
+While 4-pin SWD headers are uncommon, they remain a possibility.&lt;/p&gt;
+&lt;p&gt;To verify this, it’s time to pull out the multimeter and search for GND.
+As explained in the &lt;a href=&quot;../../silvercrest-zigbee-gateway/01---firmware-extraction#2-identifying-and-analyzing-uart--jtag-ports&quot;&gt;Silvercrest gateway teardown&lt;/a&gt;, using a multimeter makes it easy to locate ground pins.&lt;/p&gt;
+&lt;p&gt;Why only look for GND?
+Because once ground is identified, a logic analyzer can be safely connected to detect the protocol automatically, without having to redo all the voltage and resistance calculations demonstrated in the gateway analysis.&lt;/p&gt;
+&lt;p&gt;Using the multimeter in continuity mode, GND can be found by placing the black probe on one of the PCB screws, then probing each pin with the red probe.
+Pin 3 (counting from the square pad) emits a beep, confirming ground.&lt;/p&gt;
+&lt;p&gt;| PIN        | RGND | RVCC | V   | Notes |
+| ---------- | --------------- | --------------- | --- | ----- |
+| 1 (square) | 9.4 kΩ          | 0 kΩ            | 3.3 | VCC   |
+| 2          | ∞               | ∞               | 3.3 | RX    |
+| 3          | 0 kΩ            | 9.4 kΩ          | 0   | GND   |
+| 4          | 4.7 kΩ          | 4.7 kΩ          | 3.3 | TX    |&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;The screenshot above clearly shows the presence of the UART. The data wasn’t saved, but it corresponds to U-Boot.&lt;/p&gt;
+&lt;h2&gt;3. Conclusion&lt;/h2&gt;
+&lt;p&gt;As mentioned at the beginning of the project, an unfortunate short circuit interrupted the continuation of the work.
+Without the proper equipment, it’s currently impossible for me to move forward with this camera.
+I waited several weeks/months for a response from Imou, but received no reply.&lt;/p&gt;
+&lt;p&gt;If I eventually acquire a hot-air rework station, an Xgeku, or a PCBite (or similar), I may be able to resume the analysis.&lt;/p&gt;
+&lt;p&gt;For the next articles, I will probably stay at this level of hardware work, which you could consider “beginner-friendly”, with the goal of experimenting with:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Radio analysis (likely Bluetooth)&lt;/li&gt;
+&lt;li&gt;JTAG/SWD exploration&lt;/li&gt;
+&lt;li&gt;Deeper firmware inspection&lt;/li&gt;
+&lt;/ul&gt;</content:encoded><h:img src="undefined"/><enclosure url="undefined"/></item><item><title>[Imou Camera] Android Application Analysis</title><link>https://0xnyaru.github.io/blog/imou-camera/01---android-application-analysis</link><guid isPermaLink="true">https://0xnyaru.github.io/blog/imou-camera/01---android-application-analysis</guid><description>Reverse engineering, network traffic analysis, and signature reconstruction, including API behavior and security observations.</description><pubDate>Sun, 07 Dec 2025 04:06:36 GMT</pubDate><content:encoded>&lt;p&gt;import { Image } from &apos;astro:assets&apos;&lt;/p&gt;
+&lt;p&gt;import { Aside, Spoiler } from &apos;astro-pure/user&apos;&lt;/p&gt;
+&lt;p&gt;import android_abnormal_string_in_splash_activity from &apos;images/android/android_abnormal_string_in_splash_activity.png&apos;
+import android_abnormal_string_usage from &apos;images/android/android_abnormal_string_usage.png&apos;
+import android_bypass_apk_security from &apos;images/android/android_bypass_apk_security.png&apos;
+import android_cannot_be_used_in_the_emulator_splash_activity from &apos;images/android/android_cannot_be_used_in_the_emulator_splash_activity.png&apos;
+import android_header_username_postauth from &apos;images/android/android_header_username_postauth.png&apos;
+import android_headers_base64Md5 from &apos;images/android/android_headers_base64Md5.png&apos;
+import android_headers_get_apiver from &apos;images/android/android_headers_get_apiver.png&apos;
+import android_headers_getRandomStr from &apos;images/android/android_headers_getRandomStr.png&apos;
+import android_headers_setcontentmd5 from &apos;images/android/android_headers_setcontentmd5.png&apos;
+import android_network_bypass_sslpinning from &apos;images/android/android_network_bypass_sslpinning.png&apos;
+import android_network_data_encrypted from &apos;images/android/android_network_data_encrypted.png&apos;
+import android_root_detection from &apos;images/android/Android_root_detection.png&apos;&lt;/p&gt;
+&lt;h2&gt;1. Introduction&lt;/h2&gt;
+&lt;p&gt;This section aims to demonstrate how to use the mobile application to extract useful information and what can be done with it.&lt;/p&gt;
+&lt;p&gt;The following points will be covered:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Application analysis&lt;/li&gt;
+&lt;li&gt;Bypassing root and emulator protections&lt;/li&gt;
+&lt;li&gt;Network traffic analysis&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2&gt;2. Application Analysis&lt;/h2&gt;
+&lt;h3&gt;2.1 Retrieval and Installation&lt;/h3&gt;
+&lt;p&gt;The application can be downloaded directly from the Play Store at:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;https://play.google.com/store/apps/details?id=com.mm.android.smartlifeiot&amp;#x26;hl=fr&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Once installed, the application performs several checks to ensure that:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;The device is not rooted&lt;/li&gt;
+&lt;li&gt;The application is not running inside an emulator such as &lt;a href=&quot;https://www.genymotion.com&quot;&gt;Genymotion&lt;/a&gt; or &lt;a href=&quot;https://developer.android.com/studio/run/managing-avds?hl=fr&quot;&gt;Android Virtual Device&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3&gt;2.2 Setting Up the Testing Environment&lt;/h3&gt;
+&lt;p&gt;Before going further, a proper testing environment is required.
+The following tools will be used:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;https://github.com/skylot/jadx&quot;&gt;JADX&lt;/a&gt; : for decompiling and analyzing Java/Kotlin code&lt;/li&gt;
+&lt;li&gt;adb: to connect to and control the device&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://github.com/frida&quot;&gt;Frida&lt;/a&gt; : to instrument and inject code into the application&apos;s process&lt;/li&gt;
+&lt;li&gt;A rooted phone or a virtualized environment&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://gitlab.com/newbit/rootAVD&quot;&gt;rootAVD&lt;/a&gt; : to root AVD devices&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://portswigger.net/burp&quot;&gt;BurpSuite&lt;/a&gt; / &lt;a href=&quot;https://www.mitmproxy.org/&quot;&gt;mitmproxy&lt;/a&gt;: to intercept and analyze traffic sent to Chinese cloud endpoints&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;To run &lt;code&gt;Frida&lt;/code&gt; on a device, simply execute the following commands:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;adb push frida-server-XX.YY.ZZ-android-x86_64 /data/local/tmp
+adb shell chmod 777 /data/local/tmp /frida-server-XX.YY.ZZ-android-x86_64
+adb shell /data/local/tmp /frida-server-XX.YY.ZZ-android-x86_64
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;To install a certificate for &lt;code&gt;BurpSuite&lt;/code&gt;, &lt;a href=&quot;https://book.hacktricks.wiki/en/mobile-pentesting/android-app-pentesting/install-burp-certificate.html&quot;&gt;Hacktricks&lt;/a&gt; provides an automated script.&lt;/p&gt;
+&lt;p&gt;With the environment ready, the application analysis can proceed.&lt;/p&gt;
+&lt;h3&gt;2.3 Bypassing App Protections&lt;/h3&gt;
+&lt;h4&gt;2.3.1 Extracting the Application&lt;/h4&gt;
+&lt;p&gt;As mentioned earlier, the application protects itself against certain users.
+When launched on a rooted device, the following message is displayed:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;To identify the source of the message, the APK must be decompiled using &lt;code&gt;JADX&lt;/code&gt;.
+Regardless of whether the device is rooted, installed applications can always be accessed:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;$ adb shell pm list packages -f |grep com.mm
+
+package:/data/app/~~MkZmnywH-9vehB_o6JS_1Q==/com.mm.android.smartlifeiot-hPFRUMFp65B2lNgOtoGreg==/base.apk=com.mm.android.smartlifeiot
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Then extract the APK:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;$ adb pull /data/app/~~MkZmnywH-9vehB_o6JS_1Q==/com.mm.android.smartlifeiot-hPFRUMFp65B2lNgOtoGreg==/
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h4&gt;2.3.2 Analysis and Protection Bypass&lt;/h4&gt;
+&lt;p&gt;Now that the APK is available on the workstation, it can be decompiled:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;jadx -d out base.apk
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The next step is to search for the error message string. From the following result, we can also identify the corresponding resource variable:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;$ grep -r &quot;Detected abnormality&quot;
+resources/res/values/strings.xml:
+    &amp;#x3C;string name=&quot;common_mobile_abnormal_unable_launch_toast&quot;&gt;
+        Detected abnormality in current mobile OS . Unable to launch the app.
+    &amp;#x3C;/string&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Searching for the variable &lt;code&gt;common_mobile_abnormal_unable_launch_toast&lt;/code&gt; yields several results. Most of them reference the string&apos;s address, but the following one is relevant:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;$ grep -r common_mobile_abnormal_unable_launch_toast
+
+sources/com/mm/android/easy4ip/SplashActivity.java:
+    d10.b(false).g(getString(R$string.common_notice))
+    .c(getString(R$string.common_mobile_abnormal_unable_launch_toast))
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Any text editor can be used to inspect this file, but &lt;code&gt;jadx-gui&lt;/code&gt; makes the process more convenient.&lt;br&gt;
+Here is the section containing the previously identified variable:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;With &lt;code&gt;jadx-gui&lt;/code&gt;, pressing x shows cross-references.
+This function is only called once, during the creation of the &lt;code&gt;SplashActivity&lt;/code&gt;:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;The key line here is &lt;code&gt;if (k.g())&lt;/code&gt;.
+Inspecting this function shows it checks whether the device is rooted, for example by searching for the &lt;code&gt;su&lt;/code&gt; binary:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-java&quot;&gt;private static boolean j() {
+    List&amp;#x3C;String&gt; f10 = f();
+    for (int i10 = 0; i10 &amp;#x3C; f10.size(); i10++) {
+        try {
+            File file = new File(f10.get(i10), &quot;su&quot;);
+            if (file.exists() &amp;#x26;&amp;#x26; file.canExecute()) {
+                return true;
+            }
+        } catch (Exception unused) { }
+    }
+    return false;
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The entire class is dedicated to similar checks.
+Bypassing these protections is possible using &lt;code&gt;Frida&lt;/code&gt; and a root-bypass script such as:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;https://codeshare.frida.re/@ahrixia/root-detection-and-ssl-pinning-bypass/&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Running it:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;frida -U -f &quot;com.mm.android.smartlifeiot&quot; --codeshare ahrixia/root-detection-and-ssl-pinning-bypass
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;A new message then appears: &lt;code&gt;Cannot be used in the emulator environment.&lt;/code&gt;
+The first protection is bypassed, but the emulator checks remain.
+The string is referenced again inside &lt;code&gt;SplashActivity&lt;/code&gt;:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;The &lt;code&gt;gq()&lt;/code&gt; method performs multiple checks to determine whether the device is an emulator.
+Examples include:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-java&quot;&gt;private boolean o(Context context) {
+    return context.getPackageManager().hasSystemFeature(&quot;android.hardware.bluetooth&quot;);
+}
+
+private boolean p(Context context) {
+    return context.getPackageManager().hasSystemFeature(&quot;android.hardware.camera&quot;);
+}
+
+private boolean q(Context context) {
+    return context.getPackageManager().hasSystemFeature(&quot;android.hardware.camera.flash&quot;);
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;In this case, I wasn’t able to bypass all the emulator checks, nor did I find an existing &lt;code&gt;Frida&lt;/code&gt; script from the community to do so.&lt;/p&gt;
+&lt;p&gt;However, a full bypass is still possible by modifying the behavior of &lt;code&gt;SplashActivity.onCreate&lt;/code&gt; to directly launch another activity.&lt;/p&gt;
+&lt;p&gt;The following &lt;code&gt;Frida&lt;/code&gt; script was created for this purpose:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-js&quot;&gt;var SplashActivity = Java.use(&apos;com.mm.android.easy4ip.SplashActivity&apos;)
+var ShortcutDispatcherActivity = Java.use(&apos;com.mm.android.easy4ip.ShortcutDispatcherActivity&apos;)
+var Intent = Java.use(&apos;android.content.Intent&apos;)
+
+SplashActivity.onCreate.overload(&apos;android.os.Bundle&apos;).implementation = function (bundle) {
+  console.log(&apos;[*] Intercepted SplashActivity.onCreate(), redirecting to MainActivity&apos;)
+
+  this.onCreate.call(this, bundle)
+
+  var intent = Intent.$new(this, ShortcutDispatcherActivity.class)
+  this.startActivity(intent)
+
+  this.finish()
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;By altering the flow of this method, all root and emulator controls are effectively bypassed:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;h2&gt;3. Network Traffic Analysis&lt;/h2&gt;
+&lt;p&gt;The application does not allow full interception of its network traffic by default.
+To bypass this, &lt;code&gt;SSL pinning&lt;/code&gt; must be disabled, which can be done by combining several &lt;code&gt;SSL Pinning&lt;/code&gt; bypass techniques using &lt;code&gt;Frida&lt;/code&gt;.&lt;br&gt;
+For this purpose, I extracted only the SSL pinning–related part of the script available on the &lt;a href=&quot;https://codeshare.frida.re/@fdciabdul/frida-multiple-bypass/&quot;&gt;Frida Store&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;The following &lt;code&gt;BurpSuite Community&lt;/code&gt; screenshot shows that the bypass is effective and that traffic is successfully intercepted:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;Once SSL pinning is bypassed, retrieving all requests is simply a matter of browsing through each menu of the mobile application.&lt;/p&gt;
+&lt;p&gt;Even though the data shown below appears encrypted, it is actually just &lt;code&gt;GZIP&lt;/code&gt; encoding, as indicated by the HTTP header &lt;code&gt;Content-Encoding&lt;/code&gt;:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;Looking more closely at the HTTP headers, we can note the presence of several custom headers, such as:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Content-Md5&lt;/li&gt;
+&lt;li&gt;X-Pcs-XXX&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Finally, this first analysis highlights the use of the following domains:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;app-fk.imoulife.com&lt;/li&gt;
+&lt;li&gt;logreport-v2-fk.easy4ipcloud.com&lt;/li&gt;
+&lt;li&gt;file-proxy.imoulife.com&lt;/li&gt;
+&lt;li&gt;imou-fk-ali-online-bmp-private-iot.oss-eu-central-1.aliyuncs.com&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;This application has several drawbacks:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Code obfuscation&lt;/li&gt;
+&lt;li&gt;Hybrid architecture (Native + ReactNative)&lt;/li&gt;
+&lt;li&gt;Large codebase&lt;/li&gt;
+&lt;li&gt;Use of native libraries&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Performing a full analysis of the app would require a significant amount of time, which is outside the scope of my goals for this camera security study.
+I prefer focusing on filesystem and firmware analysis.&lt;/p&gt;
+&lt;h3&gt;3.1 HTTP Header Analysis&lt;/h3&gt;
+&lt;p&gt;To understand and identify the source of the custom headers, a string search in &lt;code&gt;jadx-gui&lt;/code&gt; reveals &lt;strong&gt;95 occurrences&lt;/strong&gt; of the pattern &lt;code&gt;X-Pcs&lt;/code&gt;, which ultimately refers to the following &lt;strong&gt;13 headers&lt;/strong&gt;:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;x-pcs-mqtt-token-signature&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;x-pcs-date&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;x-pcs-session-id&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;x-pcs-username&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;x-pcs-apiver&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;x-pcs-nonce&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;x-pcs-signature&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;x-pcs-client-ua&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;x-pcs-request-id&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;x_pcs_region&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;x-pcs-token&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;x-pcs-ack&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;x-pcs-conn-type&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Another interesting point is that these headers are not implemented in a single module. They appear across multiple packages:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;com.hsview.client&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;com.lechange.common.rest&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;com.mm.lc.oss&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;com.lc.lib&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;To reduce the analysis scope, all relevant requests share the common path:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;/pcs/v1&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Searching for this substring in JADX narrows the investigation down to two packages:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;com.lechange.common&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;com.hsview.client&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;However, this approach wasn’t particularly helpful due to the lack of cross‑references.
+Instead, a better strategy is to analyze each header individually.&lt;/p&gt;
+&lt;h4&gt;3.1.1 X-Content-Md5&lt;/h4&gt;
+&lt;p&gt;As shown below, the request body is hashed using MD5:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;The &lt;code&gt;base64Md5&lt;/code&gt; method looks like this:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;h4&gt;3.1.2 X-Pcs-Date&lt;/h4&gt;
+&lt;p&gt;This header is straightforward. It is generated by the following method:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-java&quot;&gt;public void setDate(Date date) {
+    this.mDate = new Date(date.getTime() + timingOffset);
+    SimpleDateFormat simpleDateFormat = new SimpleDateFormat(&quot;yyyy-MM-dd&apos;T&apos;HH:mm:ss&apos;Z&apos;&quot;, Locale.US);
+    simpleDateFormat.setTimeZone(TimeZone.getTimeZone(&quot;GMT&quot;));
+    this.mDateString = simpleDateFormat.format(this.mDate);
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h4&gt;3.1.3 X-Pcs-Nonce&lt;/h4&gt;
+&lt;p&gt;This one is more complex. The value is generated using &lt;code&gt;Util.randomString(32)&lt;/code&gt;, defined as:
+This function calls a native method named &lt;code&gt;getRandomStr&lt;/code&gt;, located inside &lt;code&gt;libHsviewClient.so&lt;/code&gt;.
+It looks like this:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;In summary, the function reads random bytes from &lt;code&gt;/dev/urandom&lt;/code&gt; and performs a small transformation using a charset stored in &lt;code&gt;data_427842&lt;/code&gt;:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-c&quot;&gt;char data_427842[0x3f] = &quot;abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890&quot;;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Below is a Python implementation that replicates the behavior:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-python&quot;&gt;import os
+
+def custom_random_string(length):
+    charset = &quot;abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890&quot;
+    assert len(charset) == 62
+
+    random_bytes = os.urandom(length)
+    result = []
+
+    for b in random_bytes:
+        # Emulates the C formula: b - (((b &gt;&gt; 1) * 0x85) &gt;&gt; 12) * 0x3e
+        tmp = ((b &gt;&gt; 1) * 0x85) &gt;&gt; 12
+        index = (b - tmp * 0x3e) &amp;#x26; 0xFF
+        index = index % len(charset)
+        result.append(charset[index])
+
+    return &apos;&apos;.join(result)
+
+print(custom_random_string(16))
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h4&gt;3.1.4 X-Pcs-Signature&lt;/h4&gt;
+&lt;p&gt;This header is more involved. The method used to generate it is:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-java&quot;&gt;public String signSaas(String str) throws Exception {
+    if (str.length() == 0) {
+        return &quot;&quot;;
+    }
+    String str2 = this.mMethod + &apos;\n&apos; + this.mUri + &apos;\n&apos; + this.mContentMd5 + &apos;\n&apos; + this.mContentType + &quot;\nx-pcs-apiver:&quot; + this.mSvnRev + &quot;\nx-pcs-client-ua:&quot; + this.mClientUaInfo + &quot;\nx-pcs-date:&quot; + this.mDateString + &quot;\nx-pcs-nonce:&quot; + this.mNonceCode + &apos;\n&apos;;
+    if (this.mSessionId != null) {
+        str2 = str2 + &quot;x-pcs-session-id:&quot; + this.mSessionId + &apos;\n&apos;;
+    }
+    return hmacSHA256Base64(str2 + &quot;x-pcs-username:&quot; + this.mUsername + &apos;\n&apos;, str);
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;This shows that the signature depends on all other &lt;code&gt;x-pcs-*&lt;/code&gt; headers.
+The final value is an &lt;code&gt;HMAC-SHA256&lt;/code&gt;, &lt;code&gt;Base64&lt;/code&gt;‑encoded.&lt;/p&gt;
+&lt;p&gt;To identify where &lt;code&gt;str&lt;/code&gt; (the key) comes from, using X in &lt;code&gt;jadx-gui&lt;/code&gt; reveals the following call chain:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;code&gt;signSaas(str)&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;SaasApiRequest.sign(...)&lt;/code&gt; → contains the call to &lt;code&gt;sign(str4)&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;HsviewClient.requestOnce_costEx(...)&lt;/code&gt; → calls &lt;code&gt;hsviewRequest.sign(..., this.password, ...)&lt;/code&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Thus, the user’s password (&lt;code&gt;MD5&lt;/code&gt;-hashed) is used to sign the data.
+The &lt;code&gt;hmacSHA256Base64&lt;/code&gt; function is defined here:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-java&quot;&gt; private static String hmacSHA256Base64(String str, String str2) throws Exception {
+    SecretKeySpec secretKeySpec = new SecretKeySpec(str2.getBytes(), &quot;HmacSHA256&quot;);
+    Mac mac = Mac.getInstance(&quot;HmacSHA256&quot;);
+    mac.init(secretKeySpec);
+    return new String(Base64.encode(mac.doFinal(str.getBytes())));
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h4&gt;3.1.5 X-Pcs-Apiver&lt;/h4&gt;
+&lt;p&gt;This header has multiple values defined by the developers. While analyzing requests, some use URIs like &lt;code&gt;device.list.XXX&lt;/code&gt;.
+Searching in &lt;code&gt;jadx-gui&lt;/code&gt; reveals how the request is constructed and where the &lt;code&gt;apiver&lt;/code&gt; value is assigned:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;h4&gt;3.1.6 X-Pcs-Session-Id&lt;/h4&gt;
+&lt;p&gt;This value is provided by the server after successful authentication, as shown in the screenshot in the next section.&lt;/p&gt;
+&lt;h4&gt;3.1.7 X-Pcs-Username&lt;/h4&gt;
+&lt;p&gt;Two different values can appear depending on the context:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;During authentication → filled with the user’s email address&lt;/li&gt;
+&lt;li&gt;After authentication → replaced by a server‑assigned internal identifier&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;h4&gt;3.1.8 X-Pcs-Client-UA&lt;/h4&gt;
+&lt;p&gt;This header is static and contains Base64‑encoded device information:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-json&quot;&gt;{
+  &quot;clientType&quot;: &quot;phone&quot;,
+  &quot;clientVersion&quot;: &quot;V8.16.1&quot;,
+  &quot;clientOV&quot;: &quot;Android 15&quot;,
+  &quot;clientOS&quot;: &quot;Android&quot;,
+  &quot;terminalModel&quot;: &quot;sdk_gphone64_x86_64&quot;,
+  &quot;terminalId&quot;: &quot;d5056d12efaa9249&quot;,
+  &quot;appid&quot;: &quot;easy4ipbaseapp&quot;,
+  &quot;project&quot;: &quot;Base&quot;,
+  &quot;language&quot;: &quot;en_US&quot;,
+  &quot;clientProtocolVersion&quot;: &quot;V9.4.0&quot;,
+  &quot;timezoneOffset&quot;: &quot;7200&quot;,
+  &quot;terminalBrand&quot;: &quot;google&quot;
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h3&gt;3.2 Sending Requests Without the Application&lt;/h3&gt;
+&lt;p&gt;With the elements deduced and identified previously, it is now possible to use Python to communicate directly with the server.&lt;/p&gt;
+&lt;p&gt;For signing the authentication request, the &lt;code&gt;Android&lt;/code&gt; package &lt;code&gt;com.lc.lib.http.http&lt;/code&gt; is responsible for generating the signature.
+To extract the parameters used during signing, we can hook the relevant methods using &lt;code&gt;Frida&lt;/code&gt;:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-js&quot;&gt;Java.choose(&apos;com.mm.android.usermodule.login.UserLoginActivity&apos;, {
+  onMatch: function (instance) {
+    console.log(&apos;instance found&apos;)
+
+    var HttpHsSignature = Java.use(&apos;com.hsview.signature.HttpHsSignature&apos;)
+    var original_method = HttpHsSignature.hmacSHA256Base64.overload(
+      &apos;java.lang.String&apos;,
+      &apos;java.lang.String&apos;
+    )
+    original_method.implementation = function (a, b) {
+      console.log(&apos;hmacSHA256Base64&apos;, a, b)
+      var ret = original_method.call(this, a, b)
+      console.log(&apos;ret&apos;, ret)
+      return ret
+    }
+
+    var LCHttpSignature = Java.use(&apos;com.lc.lib.http.http.LCHttpSignature&apos;)
+    var original_method = LCHttpSignature.hmacSHA256Base64.overload(
+      &apos;java.lang.String&apos;,
+      &apos;java.lang.String&apos;
+    )
+    original_method.implementation = function (a, b) {
+      console.log(&apos;LCHttpSignature.hmacSHA256Base64&apos;, a, b)
+      var ret = original_method.call(this, a, b)
+      console.log(&apos;ret&apos;, ret)
+      return ret
+    }
+  },
+  onComplete: function () {}
+})
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The output looks as follows:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;$ frida -U -f &quot;com.mm.android.smartlifeiot&quot; -l bypass_root.js -l check_params.js
+
+LCHttpSignature.hmacSHA256Base64 POST
+/pcs/v1/user.account.GetToken
+ZEfB5JvM3ruEfPKWc1Isuw==
+application/json; charset=utf-8
+x-pcs-apiver:191204
+x-pcs-client-ua:eyJjb3Vud&amp;#x3C;REDACTED&gt;kYXJrIn0=
+x-pcs-date:2025-08-28T16:45:07Z
+x-pcs-nonce:nBISK2MBbByckoIizONNCUSYFtASqV3j
+x-pcs-username:account\&amp;#x3C;EMAIL&gt;
+&amp;#x3C;PasswordMD5Hex&gt;
+
+ret p3//n4iKjsLUB6P9SrWYPUgDXHlfSfMarQyTYVLXfHw=
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Before sending our own crafted request to the server, these parameters will be used to build a &lt;code&gt;POC&lt;/code&gt;, and if the signature matches… BINGO.
+Below is the corresponding Python code:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-python&quot;&gt;import hmac
+import hashlib
+import base64
+
+def hmac_sha256_base64(data, key):
+    key_bytes = key.encode(&quot;utf-8&quot;)
+    data_bytes = data.encode(&quot;utf-8&quot;)
+    hmac_result = hmac.new(key_bytes, data_bytes, hashlib.sha256).digest()
+    return base64.b64encode(hmac_result).decode(&quot;utf-8&quot;)
+
+data = &quot;&quot;&quot;POST
+/pcs/v1/user.account.GetToken
+ZEfB5JvM3ruEfPKWc1Isuw==
+application/json; charset=utf-8
+x-pcs-apiver:191204
+x-pcs-client-ua:eyJjb3Vud&amp;#x3C;REDACTED&gt;kYXJrIn0=
+x-pcs-date:2025-08-28T16:45:07Z
+x-pcs-nonce:nBISK2MBbByckoIizONNCUSYFtASqV3j
+x-pcs-username:account\\&amp;#x3C;EMAIL&gt;
+&quot;&quot;&quot;
+
+print(&quot;Signature: &quot;, hmac_sha256_base64(data, &quot;&amp;#x3C;PasswordMD5Hex&gt;&quot;))
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;And the output:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;$ python get_signature.py
+
+Signature: p3//n4iKjsLUB6P9SrWYPUgDXHlfSfMarQyTYVLXfHw=
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Perfect — the re‑implementation works.&lt;/p&gt;
+&lt;h3&gt;3.3.1 Sending the Authentication Request&lt;/h3&gt;
+&lt;p&gt;When trying to replay the captured authentication request, the server returns:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-http&quot;&gt;HTTP/2 412 Precondition Failed
+Date: Thu, 28 Aug 2025 20:20:48 GMT
+Content-Type: application/json;charset=ISO-8859-1
+Content-Length: 39
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Credentials: true
+Access-Control-Expose-Headers: x-pcs-date
+X-Pcs-Date: 2025-08-28T20:20:48Z
+X-Pcs-Request-Id: 48582f8727d9048234dd29d627faa17f
+X-Frame-Options: SAMEORIGIN
+X-Content-Type-Options: nosniff
+X-Xss-Protection: 1; mode=block
+
+{&quot;code&quot;:11013,&quot;desc&quot;:&quot;11013&quot;,&quot;data&quot;:{}}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;This indicates that the signature is only valid for a limited time window.
+If the APK analysis has been performed correctly, the Python re‑implementation should allow us to generate fresh valid signatures on demand.&lt;/p&gt;
+&lt;p&gt;Below is a Python script that reconstructs the entire request:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-python&quot;&gt;import requests
+from datetime import datetime, timedelta, timezone
+import random
+import string
+import hmac
+import hashlib
+import base64
+import json
+import os
+import gzip
+import zlib
+from rich import print
+
+
+def hmac_sha256_base64(data, key):
+    key_bytes = key.encode(&quot;utf-8&quot;)
+    data_bytes = data.encode(&quot;utf-8&quot;)
+    hmac_result = hmac.new(key_bytes, data_bytes, hashlib.sha256).digest()
+    return base64.b64encode(hmac_result).decode(&quot;utf-8&quot;)
+
+
+def set_date(date: datetime, timing_offset: int) -&gt; str:
+    if date.tzinfo is None:
+        date = date.replace(tzinfo=timezone.utc)
+
+    adjusted = date + timedelta(milliseconds=timing_offset)
+    return adjusted.astimezone(timezone.utc).strftime(&quot;%Y-%m-%dT%H:%M:%SZ&quot;)
+
+
+def random_string(length):
+    charset = &quot;abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890&quot;
+    assert len(charset) == 62
+
+    random_bytes = os.urandom(length)
+    result = []
+
+    for b in random_bytes:
+        tmp = ((b &gt;&gt; 1) * 0x85) &gt;&gt; 12
+        index = (b - tmp * 0x3E) &amp;#x26; 0xFF
+        index = index % len(charset)
+        result.append(charset[index])
+
+    return &quot;&quot;.join(result)
+
+
+def raw_gzip(data: str) -&gt; bytes:
+    # GZIP header: ID1, ID2, CM, FLG, MTIME (4 bytes), XFL, OS
+    header = b&quot;\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\x00&quot;
+
+    # Raw deflate (no zlib header) with best compression
+    compressed = zlib.compress(data.encode(&quot;utf-8&quot;), level=9)[2:-4]
+
+    # GZIP footer: CRC32 + ISIZE
+    crc = zlib.crc32(data.encode(&quot;utf-8&quot;)) &amp;#x26; 0xFFFFFFFF
+    isize = len(data.encode(&quot;utf-8&quot;)) &amp;#x26; 0xFFFFFFFF
+    footer = crc.to_bytes(4, &quot;little&quot;) + isize.to_bytes(4, &quot;little&quot;)
+
+    return header + compressed + footer
+
+
+clientUa = &quot;eyJjb3Vud&amp;#x3C;REDACTED&gt;kYXJrIn0=&quot;
+
+
+mMethod = &quot;POST&quot;
+mUri = &quot;/pcs/v1/user.account.GetToken&quot;
+contentMd5 = &quot;ZEfB5JvM3ruEfPKWc1Isuw==&quot;
+# UTC+2 → offset -2 hours
+_date = set_date(datetime.now(), -2 * 60 * 60 * 1000)
+apiver = &quot;191204&quot;
+nonce = random_string(32)
+username = &quot;account\\&amp;#x3C;EMAIL&gt;&quot;
+
+
+data_for_sign = (
+	f&quot;{mMethod}\n&quot;
+	f&quot;{mUri}\n&quot;
+	f&quot;{contentMd5}\n&quot;
+	f&quot;application/json; charset=utf-8\n&quot;
+	f&quot;x-pcs-apiver:{apiver}\n&quot;
+	f&quot;x-pcs-client-ua:{clientUa}\n&quot;
+	f&quot;x-pcs-date:{_date}\n&quot;
+	f&quot;x-pcs-nonce:{nonce}\n&quot;
+	f&quot;x-pcs-username:{username}\n&quot;
+)
+
+body = {&quot;data&quot;: {&quot;gpsInfo&quot;: {&quot;latitude&quot;: 0.0, &quot;longitude&quot;: 0.0}}}
+
+signature = hmac_sha256_base64(data_for_sign, &quot;&amp;#x3C;PasswordMD5Hex&gt;&quot;)
+print(f&quot;signature = {signature}&quot;)
+
+headers = {
+    &quot;X-Pcs-Client-Ua&quot;: clientUa,
+    &quot;X-Pcs-Date&quot;: _date,
+    &quot;X-Pcs-Username&quot;: username,
+    &quot;X-Pcs-Apiver&quot;: apiver,
+    &quot;Content-Md5&quot;: contentMd5,
+    &quot;X-Pcs-Nonce&quot;: nonce,
+    &quot;X-Pcs-Signature&quot;: signature,
+    &quot;Content-Type&quot;: &quot;application/json; charset=utf-8&quot;,
+    &quot;User-Agent&quot;: &quot;okhttp/3.12.1&quot;,
+    &quot;Timeout&quot;: &quot;10000&quot;,
+    &quot;Content-Encoding&quot;: &quot;gzip&quot;,
+    &quot;Accept-Encoding&quot;: &quot;gzip, deflate, br&quot;,
+}
+
+resp = requests.post(
+    f&quot;https://app-v2.easy4ipcloud.com{mUri}&quot;,
+    headers=headers,
+    data=raw_gzip(json.dumps(body, separators=(&quot;,&quot;, &quot;:&quot;))),
+)
+
+print(&quot;Status Code:&quot;, resp.status_code)
+print(&quot;body&quot;, resp.json())
+
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;After thousands of tests, a finally working version was obtained:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;python perform_requests.py
+
+{
+    &apos;code&apos;: 10000,
+    &apos;desc&apos;: &apos;success&apos;,
+    &apos;data&apos;: {
+        &apos;entryUrlV2&apos;: &apos;https://app-fk.imoulife.com:443&apos;,
+        &apos;sessionId&apos;: &apos;f84a4&amp;#x3C;REDACTED&gt;c0f823&apos;,
+        &apos;username&apos;: &apos;ezx0gr&amp;#x3C;REDACTED&gt;7z&apos;,
+        &apos;token&apos;: &apos;790&amp;#x3C;REDACTED&gt;k4qp&apos;
+    }
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;From this point onward, the &lt;code&gt;username&lt;/code&gt; field must be replaced with the new server‑provided identifier, and the HMAC key becomes the &lt;code&gt;MD5&lt;/code&gt; hash of the &lt;code&gt;token&lt;/code&gt; returned in the response.&lt;/p&gt;
+&lt;p&gt;The full source code, PoC scripts and tools used in this analysis are available on my GitHub repository&lt;/p&gt;
+&lt;p&gt;PS: All related code will be published on GitHub.&lt;/p&gt;
+&lt;h2&gt;4. Conclusion&lt;/h2&gt;
+&lt;p&gt;This in-depth analysis of the &lt;strong&gt;Imou Life&lt;/strong&gt; Android application made it possible to understand its internal behavior, bypass its protection mechanisms (root detection, emulator detection, SSL pinning), and observe how it communicates with remote servers.&lt;/p&gt;
+&lt;p&gt;Using tools such as &lt;code&gt;Frida&lt;/code&gt;, &lt;code&gt;JADX&lt;/code&gt;, &lt;code&gt;BurpSuite&lt;/code&gt;, and a controlled test environment, it was possible to:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Decompile the application, identify the embedded protection layers, and successfully bypass them.&lt;/li&gt;
+&lt;li&gt;Instrument the app at runtime to override or neutralize its security checks.&lt;/li&gt;
+&lt;li&gt;Intercept and analyze network traffic despite the use of encryption, GZIP compression, HMAC-SHA256, and MD5-based tokens.&lt;/li&gt;
+&lt;li&gt;Fully reproduce the API requests by re-implementing the authentication and signing logic in a working &lt;strong&gt;Python proof-of-concept&lt;/strong&gt; script.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Although the goal was not to perform a full security assessment, this research opens several potential avenues for further exploration:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Analysis of &lt;code&gt;exported&lt;/code&gt; components in the &lt;code&gt;AndroidManifest.xml&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;Inspection of local configuration files and logs stored under &lt;code&gt;/data/data/...&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;Review of internal &lt;strong&gt;WebViews&lt;/strong&gt; and embedded JavaScript logic.&lt;/li&gt;
+&lt;li&gt;Observing the behavior and permissions of the app’s &lt;strong&gt;content providers&lt;/strong&gt;.&lt;/li&gt;
+&lt;/ul&gt;</content:encoded><h:img src="undefined"/><enclosure url="undefined"/></item><item><title>[Imou Camera] Firmware Analysis</title><link>https://0xnyaru.github.io/blog/imou-camera/00---firmware-analysis</link><guid isPermaLink="true">https://0xnyaru.github.io/blog/imou-camera/00---firmware-analysis</guid><description>In-depth reverse engineering and security analysis of the Imou camera firmware, including filesystem extraction, certificate handling, and potential weaknesses.</description><pubDate>Sun, 07 Dec 2025 03:06:36 GMT</pubDate><content:encoded>&lt;p&gt;import { Image } from &apos;astro:assets&apos;&lt;/p&gt;
+&lt;p&gt;import { Aside, Spoiler } from &apos;astro-pure/user&apos;&lt;/p&gt;
+&lt;h2&gt;1. Introduction&lt;/h2&gt;
+&lt;p&gt;After the previous work, it was time to switch to a new target device. Initially, I wanted to focus on an oximeter — but I accidentally wiped its flash memory, effectively ruining all the work done on it.&lt;/p&gt;
+&lt;p&gt;No big deal: instead, I’m presenting here an analysis of a Chinese IP camera from the brand Imou.
+This device offers a new opportunity to identify hardware components, but also to explore the firmware, the mobile application, and the associated cloud services.&lt;/p&gt;
+&lt;h2&gt;2. Obtaining a Firmware Image&lt;/h2&gt;
+&lt;p&gt;New project, new approach.&lt;br&gt;
+This time, before disassembling the camera to access hardware components, I decided to first dig into the official mobile app to gather information.&lt;/p&gt;
+&lt;p&gt;After installing both the camera and the application, the initial analysis was performed solely using the &lt;code&gt;adb logcat&lt;/code&gt; command on a &lt;strong&gt;non-rooted&lt;/strong&gt; phone.&lt;/p&gt;
+&lt;p&gt;Log analysis reveals several outbound communications, notably toward:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;https://h5-fk.imoulife.com&quot;&gt;h5-fk.imoulife.com&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;http://web-ali-fk.oss-eu-central-1.aliyuncs.com&quot;&gt;web-ali-fk.oss-eu-central-1.aliyuncs.com&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://imou-fk-ali-online-paas-publicread-upgrade-fk.eu-central-1.oss.aliyuncs.com&quot;&gt;imou-fk-ali-online-paas-publicread-upgrade-fk.eu-central-1.oss.aliyuncs.com&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;One of these requests points directly to the camera’s &lt;a href=&quot;https://imou-fk-ali-online-paas-publicread-upgrade-fk.eu-central-1.oss.aliyuncs.com/upgrade/1755505074824_IPC_Imou-Consumer-Hai-Hertz4_Eng_PN_ATBM6062_V3.010.0000000.2.R.250808.bin&quot;&gt;firmware&lt;/a&gt;, which can be downloaded from the update URL.&lt;/p&gt;
+&lt;p&gt;A deeper analysis of the application will be performed later, but even without root, &lt;code&gt;logcat&lt;/code&gt; already exposes questionable security practices that could be exploited by a malicious application.&lt;/p&gt;
+&lt;p&gt;After retrieving the firmware, &lt;code&gt;binwalk&lt;/code&gt; shows the following:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;$ binwalk -M 1755505074824_IPC_Imou-Consumer-Hai-Hertz4_Eng_PN_ATBM6062_V3.010.0000000.2.R.250808.bin
+
+Dahua ZIP archive, version: 2.0, file count: 8, total size: 7584491 bytes
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The archive can then be extracted using &lt;code&gt;7z&lt;/code&gt; or, more thoroughly, using the recursive extraction option of &lt;code&gt;binwalk&lt;/code&gt;, which is what I used:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;$ binwalk -Me 1755505074824_IPC_Imou-Consumer-Hai-Hertz4_Eng_PN_ATBM6062_V3.010.0000000.2.R.250808.bin
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The extracted &lt;code&gt;.img&lt;/code&gt; files correspond to:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;$ file *.img
+
+check.img:               u-boot legacy uImage, check, Linux/ARM, Firmware Image (Not compressed) [...]
+dhboot.bin.img:          u-boot legacy uImage, boot, Linux/ARM, Firmware Image (Not compressed) [...]
+kernel.img:              u-boot legacy uImage, kernel, Linux/ARM, Firmware Image (Not compressed) [...]
+partition-x.cramfs.img:  u-boot legacy uImage, partition, Linux/ARM, Standalone Program (gzip) [...]
+romfs-x.squashfs.img:    u-boot legacy uImage, romfs, Linux/ARM, Standalone Program (gzip) [...]
+sign.img:                data
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The next step consists of analyzing the content of these different images.&lt;/p&gt;
+&lt;h3&gt;2.1 Firmware Analysis&lt;/h3&gt;
+&lt;p&gt;The extraction directory contains an &lt;code&gt;Install&lt;/code&gt; file indicating how each image is used:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-json&quot;&gt;{
+  &quot;Commands&quot;: [
+    &quot;burn kernel.img kernel&quot;,
+    &quot;burn partition-x.cramfs.img partition&quot;,
+    &quot;burn romfs-x.squashfs.img rootfs&quot;,
+    &quot;burn dhboot.bin.img bootloader&quot;
+  ],
+  &quot;Devices&quot;: [[&quot;IPC-HX3XXX&quot;, &quot;1.00&quot;]],
+  &quot;Vendor&quot;: &quot;LC&quot;
+}
+//IPC_RestoreDefault
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The most important image to explore is therefore romfs, which corresponds to the &lt;code&gt;rootfs&lt;/code&gt;.
+This dump shows that the system runs on an &lt;code&gt;ARM&lt;/code&gt; microprocessor:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;$ file busybox
+busybox: ELF 32-bit LSB executable, ARM, EABI5 version 1 (SYSV), dynamically linked [...]
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Inside &lt;code&gt;etc/init.d/rcS&lt;/code&gt;, not all partitions appear to be mounted — which is expected:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;$ cat etc/init.d/rcS
+
+[...]
+config=`cat /proc/mtd | grep &quot;config&quot;`
+backup=`cat /proc/mtd | grep &quot;backup&quot;`
+[...]
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The &lt;code&gt;etc/passwd&lt;/code&gt; file shows two accounts that can (in theory) authenticate:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;$ cat passwd
+
+root:x:0:0:root:/:/bin/sh
+sshd:x:74:74:Privilege-separated SSH:/var/empty/sshd:/sbin/nologin
+admin:x:0:502:Linux User,,,:/:/bin/dsh
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Although no partitions are explicitly mounted, the &lt;code&gt;/mnt&lt;/code&gt; directory does contain an interesting structure:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;$ ls -1 mnt
+
+afix
+backup
+backupApp
+custom -&gt; /usr/pd/custom
+data
+dsp
+firmware
+mtd
+pd -&gt; /usr/pd/
+root
+samba
+sd
+syslog
+tmp
+web
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;While reviewing the executables extracted from the firmware, the &lt;code&gt;sb_util&lt;/code&gt; binary stands out immediately. The analysis of its embedded strings reveals functionality related to hardware locking mechanisms, secure-boot configuration, and eFuse programming:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;$ strings sbin/sb_util
+
+[...]
+Boot Mode
+Disable
+Enable
+JTAG
+Locked
+Unlocked
+Efuse Programing
+[...]
+Security Boot enable
+Security Boot enable &amp;#x26; lock.
+Set AES Data
+Set digest Data
+[...]
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;This utility interacts directly with &lt;code&gt;/dev/msys&lt;/code&gt; and &lt;code&gt;/dev/mem&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;There is also a large &lt;strong&gt;6 MB&lt;/strong&gt; binary named &lt;code&gt;sonia&lt;/code&gt; in &lt;code&gt;usr/bin/&lt;/code&gt;, which appears to implement most of the camera’s core logic.
+It embeds two certificates:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;Issuer: C=CN, ST=Zhejiang, L=Hangzhou, O=Huacheng, CN=Imou Root CA
+Subject: C=CN, ST=Zhejiang, L=Hangzhou, O=Huacheng, CN=Imou Root CA
+
+Issuer: C=CN, ST=Zhejiang, L=Hangzhou, O=Zhejiang Dahua Technology Co.,Ltd., CN=Dahua Root CA
+Subject: C=CN, ST=Zhejiang, L=Hangzhou, O=Zhejiang Dahua Technology Co.,Ltd., CN=Dahua Subordinate CA
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;In the same directory, there is also &lt;code&gt;usr/bin/ssl&lt;/code&gt;, which contains certificates and private keys:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;$ ls usr/bin/ssl
+
+cacert.pem  privkey.pem  pwdreset.pem
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The private key is password-protected:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;$ openssl pkey -pubout -text -in ./usr/bin/ssl/privkey.pem
+Enter pass phrase for ./usr/bin/ssl/privkey.pem:
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;code&gt;hashcat&lt;/code&gt; was not able to recover the password, so reverse-engineering the sonia binary will likely be necessary to understand how it is generated or validated.&lt;/p&gt;
+&lt;p&gt;Additionally, the binaries &lt;code&gt;riu_r&lt;/code&gt; and &lt;code&gt;riu_w&lt;/code&gt; are noteworthy since they directly access hardware registers.
+Their purpose (to be confirmed later when the SoC is identified) is likely:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;RIU Read&lt;/strong&gt; — Register Interface Unit read tool&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;RIU Write&lt;/strong&gt; — Register Interface Unit write tool&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;SubSystem Bus Utility&lt;/strong&gt; for &lt;code&gt;sb_util&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;An example of documentation relevant for RIU/GPIO access is available here:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;https://wx.comake.online/doc/ds82ff82j7jsd9-SSD220/customer/faq/P3/gpio.html&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Before wrapping up the firmware analysis, here are the partitions configured in the &lt;code&gt;dhboot&lt;/code&gt; image:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;da=tftp 0x22000000 dhboot.bin.img; flwrite
+dr=tftp 0x22000000 romfs-x.squashfs.img; flwrite
+dk=tftp 0x22000000 kernel.img; flwrite
+du=tftp 0x22000000 user-x.squashfs.img; flwrite
+dw=tftp 0x22000000 web-x.squashfs.img; flwrite
+dp=tftp 0x22000000 partition-x.cramfs.img;flwrite
+dc=tftp 0x22000000 custom-x.squashfs.img; flwrite
+up=tftp 0x22000000 update.img; flwrite
+tk=tftp 0x22000000 uImage; bootm
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;At this stage, no direct exploitation is possible without further digging into the individual binaries found in the firmware.&lt;/p&gt;
+&lt;h2&gt;3. Conclusion&lt;/h2&gt;
+&lt;p&gt;Extracting the firmware provided several exploitable images, including a SquashFS-based &lt;code&gt;rootfs&lt;/code&gt; containing the device’s embedded Linux environment. The analysis revealed the presence of an ARM processor, multiple logical partitions, a structured filesystem, and several critical software components such as &lt;code&gt;busybox&lt;/code&gt;, initialization scripts, certificates, and a large central binary (&lt;code&gt;sonia&lt;/code&gt;) that likely implements most of the camera’s functionality.&lt;/p&gt;
+&lt;p&gt;Some sensitive artefacts were uncovered, including password-protected private keys, root certificates, and binaries that may manipulate secure boot parameters or &lt;code&gt;eFuses&lt;/code&gt;. Although the system seems oriented toward enforcing security, certain practices — such as embedding certificates directly in the filesystem — raise questions about its overall robustness.&lt;/p&gt;
+&lt;p&gt;This reverse-engineering step provides a solid foundation for future investigations, especially regarding authentication, secure-boot mechanisms, or potential hardware bypasses. Particular attention will be given to the &lt;code&gt;sonia&lt;/code&gt; binary in upcoming analyses to better understand its internal communication, encryption, and access-control mechanisms.&lt;/p&gt;</content:encoded><h:img src="undefined"/><enclosure url="undefined"/></item><item><title>[Silvercrest Smart Home] Firmware analysis</title><link>https://0xnyaru.github.io/blog/silvercrest-zigbee-gateway/02---firmware-analysis</link><guid isPermaLink="true">https://0xnyaru.github.io/blog/silvercrest-zigbee-gateway/02---firmware-analysis</guid><description>Introduction to hardware hacking</description><pubDate>Fri, 08 Aug 2025 22:06:36 GMT</pubDate><content:encoded>&lt;p&gt;import reverse_tuyamtd_do_read_encrypt from &apos;images/02/reverse_tuyamtd_do_read_encrypt.png&apos;
+import reverse_tuyamtd_main from &apos;images/02/reverse_tuyamtd_main.png&apos;
+import reverse_tyamtd_do_read_encrypt_aes_decode from &apos;images/02/reverse_tyamtd_do_read_encrypt_aes_decode.png&apos;
+import reverse_tyamtd_do_read_encrypt_encoded_key from &apos;images/02/reverse_tyamtd_do_read_encrypt_encoded_key.png&apos;
+import reverse_tyamtd_encode_key_get from &apos;images/02/reverse_tyamtd_encode_key_get.png&apos;
+import reverse_tyZ3Gw_g_auth_key from &apos;images/02/reverse_tyZ3Gw_g_auth_key.png&apos;
+import reverse_tyZ3Gw_tuya_login_init_root_user from &apos;images/02/reverse_tyZ3Gw_tuya_login_init_root_user.png&apos;
+import revese_tyZ3GW_tuya_login_init_modify_factoty_password from &apos;images/02/revese_tyZ3GW_tuya_login_init_modify_factoty_password.png&apos;
+import root_access from &apos;images/02/root_access.png&apos;
+import tyZ3Gw_main_hardcoded_secrets from &apos;images/02/tyZ3Gw_main_hardcoded_secrets.png&apos;&lt;/p&gt;
+&lt;p&gt;import { Image } from &apos;astro:assets&apos;&lt;/p&gt;
+&lt;p&gt;import { Aside } from &apos;astro-pure/user&apos;&lt;/p&gt;
+&lt;h2&gt;1. Introduction&lt;/h2&gt;
+&lt;p&gt;In the previous section, the firmware was successfully extracted using various methods.
+Now, it&apos;s time to analyze the firmware to identify the &lt;code&gt;root&lt;/code&gt; user&apos;s password.&lt;/p&gt;
+&lt;h2&gt;2. Firmware Analysis&lt;/h2&gt;
+&lt;p&gt;This phase focuses on recovering the root password. The goal is to simplify access to the gateway once powered on — particularly using SSH, which is significantly faster than a UART connection at 38400 baud.&lt;/p&gt;
+&lt;p&gt;This also avoids the need to emulate the firmware prematurely.&lt;/p&gt;
+&lt;p&gt;After some exploration, information related to the root password appears to reside within a program located in the &lt;code&gt;jffs2-fs&lt;/code&gt; partition, at the following path:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;jffs2-root/tuyamtd
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;To recall, you can extract the partition contents using &lt;code&gt;binwalk&lt;/code&gt;:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;sudo docker run -t -v &quot;$PWD&quot;:/analysis binwalkv3 -Me jffs2-fs.bin
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;A detailed breakdown of the filesystem and all programs will be covered in a separate post.
+Here, the sole objective is to recover the root password.&lt;/p&gt;
+&lt;p&gt;Two binaries are particularly important in this step:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;tyZ3Gw&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;tuyamtd&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The analysis is done using &lt;strong&gt;Binary Ninja&lt;/strong&gt;.&lt;/p&gt;
+&lt;h3&gt;2.1 Analysis of &lt;code&gt;tyZ3Gw&lt;/code&gt;&lt;/h3&gt;
+&lt;p&gt;Inside the &lt;code&gt;main&lt;/code&gt; function, the &lt;code&gt;tyZ3Gw&lt;/code&gt; binary reveals a hardcoded UUID and authentication key:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;Later in the code, the function &lt;code&gt;tuya_login_init&lt;/code&gt; is called with &lt;code&gt;g_auth_key&lt;/code&gt; as a parameter.
+This function shows the expected user account is clearly root:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;A little further on, the logic behind defining the password is observed:&lt;/p&gt;
+&lt;p&gt;&amp;#x3C;Image
+src={revese_tyZ3GW_tuya_login_init_modify_factoty_password}
+alt=&apos;tyZ3GW default password modification&apos;
+width={600}
+class=&apos;zoomable&apos;
+layout=&apos;fixed&apos;&lt;/p&gt;
+&lt;p&gt;/&gt;&lt;/p&gt;
+&lt;p&gt;The program extracts the last 8 characters of the &lt;code&gt;g_auth_key&lt;/code&gt; and uses them as the password.
+However, this does not allow successful login to the system — suggesting that the current value of &lt;code&gt;g_auth_key&lt;/code&gt; is incorrect or incomplete.&lt;/p&gt;
+&lt;p&gt;Back in the &lt;code&gt;main&lt;/code&gt; function, another function draws attention: &lt;code&gt;get_prod_info&lt;/code&gt;.
+It fills the &lt;code&gt;g_auth_key&lt;/code&gt; variable using the value of &lt;code&gt;auzkey&lt;/code&gt;, by calling another binary — tuyamtd.&lt;/p&gt;
+&lt;p&gt;This &lt;code&gt;auzkey&lt;/code&gt; becomes critical in order to retrieve the root access:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Summary&lt;/strong&gt;:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;The program &lt;code&gt;tuyamtd&lt;/code&gt; is executed with:
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;read&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;auzkey&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;The value of &lt;code&gt;auzkey&lt;/code&gt; initializes &lt;code&gt;g_auth_key&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;The &lt;code&gt;root&lt;/code&gt; password is the last 8 characters of &lt;code&gt;g_auth_key&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3&gt;2.2 Analysis of tuyamtd&lt;/h3&gt;
+&lt;p&gt;After static analysis, the content of the &lt;code&gt;main&lt;/code&gt; function can be inspected. After some renaming, the following structure becomes visible:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;This screenshot reveals that:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;The program reads from &lt;code&gt;/dev/mtd3&lt;/code&gt; (partition &lt;code&gt;tuya-label&lt;/code&gt;)&lt;/li&gt;
+&lt;li&gt;It takes two CLI arguments
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;read&lt;/code&gt; or &lt;code&gt;write&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;a key (ex: &lt;code&gt;auzkey&lt;/code&gt;)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;{/* prettier-ignore */}&lt;/p&gt;
+&lt;p&gt;The &lt;code&gt;flash_read&lt;/code&gt; function then calls &lt;code&gt;do_read_encrypt(int matched, char *arg2)&lt;/code&gt;:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;Here, a call to lseek moves the read pointer in flash memory. The address is calculated as:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;1 * 0x1c + 0x16010 -&gt; 0x2000
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The function reads &lt;code&gt;98 bytes&lt;/code&gt;, from &lt;code&gt;0x2000&lt;/code&gt; to &lt;code&gt;0x2062&lt;/code&gt;.
+The data can be viewed directly in the partition dump:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;xxd tuya-label.bin|grep grep 2000 -A 3
+
+00002000: 2030 e12e 1d3f 9ede b6f8 9f7d 1cba 65cd   0...?.....}..e.
+00002010: d656 ed41 b658 65cc 4090 ec9a 604b f68a  .V.A.Xe.@...`K..
+00002020: a59a 0b67 3a9e 0e1c d107 5403 948a ac14  ...g:.....T.....
+00002030: 97ae ffff ffff ffff ffff ffff ffff ffff  ................
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The function then decrypts the data using &lt;strong&gt;AES-128 in ECB mode&lt;/strong&gt;, with a key stored in &lt;code&gt;g_encode_key&lt;/code&gt;:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;The next step is to locate &lt;code&gt;g_encode_key&lt;/code&gt;.
+One trick is to invoke &lt;code&gt;tuyamtd&lt;/code&gt; with &lt;code&gt;encode_key&lt;/code&gt; instead of &lt;code&gt;auzkey&lt;/code&gt;, which causes &lt;code&gt;matched&lt;/code&gt; to be 0.&lt;/p&gt;
+&lt;p&gt;The address becomes:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;0 * 0x1c + 0x16010` -&gt; `0x1800`
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;Extract the memory segment:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;xxd tuya-label.bin|grep 01800 -A 1
+
+00001800: 1010 7236 2730 2d2a 3969 3f30 6f72 576c  ..r6&apos;0-*9i?0orWl
+00001810: 2778 ffff ffff ffff ffff ffff ffff ffff  &apos;x..............
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The &lt;strong&gt;AES key&lt;/strong&gt; is now accessible.&lt;/p&gt;
+&lt;p&gt;To use it, we must understand how the key is &lt;strong&gt;encoded&lt;/strong&gt;.
+The function responsible is &lt;code&gt;encode_key_get&lt;/code&gt;:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;The logic can be reimplemented like this:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-python&quot;&gt;from Crypto.Cipher import AES
+import struct
+
+encoded_key = b&quot;r6&apos;0-*9i?0orWl&apos;x&quot;
+decoded_key = b&quot;&quot;
+for i in encoded_key:
+    tmp = (encoded_key[0] * i % 0x5D) + 0x21
+    decoded_key += chr(tmp).encode()
+
+enc_auzkey = bytes.fromhex(
+    &quot;E12E1D3F9EDEB6F89F7D1CBA65CDD656ED41B65865CC4090EC9A604BF68AA59A&quot;
+)
+
+c = AES.new(decoded_key, AES.MODE_ECB)
+dec_auzkey = c.decrypt(enc_auzkey)
+
+print(f&quot;decoded key: {decoded_key}&quot;)
+print(f&quot;auzkey: {dec_auzkey}&quot;)
+print(f&quot;root password {dec_auzkey[-8:]}&quot;)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Run it :&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;$ python decode.py
+
+decoded key: b&quot;f3lo0Nrc6o&apos;f]El*&quot;
+auzkey: b&apos;A7T7Zz9CnUbCsDTRqlmtM5NfNA8Pryxd&apos;
+root password b&apos;NA8Pryxd&apos;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Using this password to log in via SSH provides access to the system:&lt;/p&gt;
+&lt;h2&gt;3. Conclusion&lt;/h2&gt;
+&lt;p&gt;This tutorial walked through the &lt;strong&gt;reverse engineering&lt;/strong&gt; of a Silvercrest IoT gateway sold by Lidl, focusing on firmware extraction and analysis.&lt;/p&gt;
+&lt;p&gt;The process began with identifying debug interfaces like UART, allowing direct interaction with the bootloader. Serial logs revealed key hardware and memory layout information.&lt;/p&gt;
+&lt;p&gt;Firmware extraction was done via UART, and tools like pyserial and binwalk were used to analyze partitions&lt;/p&gt;
+&lt;p&gt;The main goal — gaining &lt;strong&gt;root access&lt;/strong&gt; — was achieved through static and dynamic analysis of two binaries: &lt;code&gt;tyZ3Gw&lt;/code&gt; and &lt;code&gt;tuyamtd&lt;/code&gt;. The root password was recovered by reverse-engineering the AES-based encryption scheme used to store the key in flash memory.&lt;/p&gt;
+&lt;p&gt;This analysis highlights the critical importance of proper authentication, encryption, and secure storage of secrets in embedded systems.&lt;/p&gt;
+&lt;p&gt;That’s it for this series — at least for now.
+There doesn’t seem to be much value in further analyzing:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;the mobile application, as it’s just a Tuya-branded app (yes, even the Lidl one)&lt;/li&gt;
+&lt;li&gt;other binaries on the device, as the gateway seems outdated and identifying a 0-day would likely be time-consuming with limited impact&lt;/li&gt;
+&lt;li&gt;the Zigbee communication: some strings in the firmware suggest the use of the default key, but exploiting this would require intercepting traffic to retrieve the Network Key, and I didn’t have the required hardware at the time of writing&lt;/li&gt;
+&lt;/ul&gt;</content:encoded><h:img src="undefined"/><enclosure url="undefined"/></item><item><title>[Silvercrest Smart Home] Firmware Extraction</title><link>https://0xnyaru.github.io/blog/silvercrest-zigbee-gateway/01---firmware-extraction</link><guid isPermaLink="true">https://0xnyaru.github.io/blog/silvercrest-zigbee-gateway/01---firmware-extraction</guid><description>Introduction to hardware hacking: methods to extract firmware from Silvercrest Smart Home gateway via UART, SPI, and JTAG interfaces.</description><pubDate>Wed, 06 Aug 2025 22:06:36 GMT</pubDate><content:encoded>&lt;p&gt;import bad_baud_speed from &apos;images/01/bad_baud_speed.png&apos;
+import binwalk_check_dump_flash from &apos;images/01/binwalk_check_dump_flash.png&apos;
+import boot_sequence_flash_spi from &apos;images/01/boot_sequence_flash_spi.png&apos;
+import boot_sequence_hardware from &apos;images/01/boot_sequence_hardware.png&apos;
+import boot_sequence_memory_address from &apos;images/01/boot_sequence_memory_address.png&apos;
+import boot_sequence_memory_dump from &apos;images/01/boot_sequence_memory_dump.png&apos;
+import boot_sequence_partition from &apos;images/01/boot_sequence_partition.png&apos;
+import booting_system_uart from &apos;images/01/booting_system_uart.png&apos;
+import complete_connection from &apos;images/01/complete_connection.png&apos;
+import multimeter_ohm_mode from &apos;images/01/multimeter_ohm_mode.png&apos;
+import multimeter_volt_mode from &apos;images/01/multimeter_volt_mode.png&apos;
+import puseview_trame from &apos;images/01/puseview_trame.png&apos;
+import read_identification_spi from &apos;images/01/read_identification_spi.png&apos;
+import realtek_bootloader_command from &apos;images/01/realtek_bootloader_command.png&apos;
+import realtek_bootloader_prompt from &apos;images/01/realtek_bootloader_prompt.png&apos;
+import spi_hydrabus_match from &apos;images/01/spi_hydrabus_match.png&apos;
+import spi_pin_connection from &apos;images/01/spi_pin_connection.png&apos;
+import spi_read_data_spec from &apos;images/01/spi_read_data_spec.png&apos;
+import spi_read_data from &apos;images/01/spi_read_data.png&apos;
+import table_of_id_definitions from &apos;images/01/table_of_id_definitions.png&apos;
+import uart_frame_decoded from &apos;images/01/uart_frame_decoded.png&apos;
+import usb_analyser_logic from &apos;images/01/usb_analyser_logic.png&apos;
+import USB_to_ttl_board from &apos;images/01/USB_to_ttl_board.png&apos;
+import usb_to_ttl from &apos;images/01/usb_to_ttl.png&apos;
+import volt_measure from &apos;images/01/volt_measure.png&apos;
+import wiring_between_hydra_and_flash from &apos;images/01/wiring_between_hydra_and_flash.png&apos;
+import wiring_in_real from &apos;images/01/wiring_in_real.png&apos;
+import zigbee_pin from &apos;images/01/zigbee_pin.png&apos;&lt;/p&gt;
+&lt;p&gt;import { Image } from &apos;astro:assets&apos;&lt;/p&gt;
+&lt;p&gt;import { Aside } from &apos;astro-pure/user&apos;&lt;/p&gt;
+&lt;p&gt;import { Steps } from &apos;astro-pure/user&apos;&lt;/p&gt;
+&lt;h2&gt;1. Introduction&lt;/h2&gt;
+&lt;p&gt;In the &lt;a href=&quot;/blog/silvercrest-zigbee-gateway/00---hardware-analysis-of-the-gateway&quot;&gt;Hardware Analysis of the Gateway&lt;/a&gt; section, identifying the components revealed the presence of debug ports that could allow firmware extraction.&lt;/p&gt;
+&lt;p&gt;This section is dedicated to identifying those debug ports, determining the protocol used, and how to connect to them properly. The gathered information will later be reused to extract the firmware stored in the RTL8196E SoC.&lt;/p&gt;
+&lt;h3&gt;1.1 What is firmware?&lt;/h3&gt;
+&lt;p&gt;Before going further, what exactly is firmware, and why is it important to retrieve it?&lt;/p&gt;
+&lt;p&gt;Firmware is the embedded software running on an electronic device (IoT, router, smartwatch, etc.). It&apos;s typically &lt;strong&gt;hardware-specific&lt;/strong&gt;, unlike general-purpose Linux or Android systems, and it&apos;s optimized for memory usage, power consumption, and performance.&lt;/p&gt;
+&lt;p&gt;It controls how the device behaves: it includes the operating system, drivers, network protocols, boot routines, and sometimes embedded secrets like keys or certificates. It&apos;s stored as a binary file on a memory chip (e.g., SPI Flash) and loaded by the main processor (SoC, MCU…) at boot.&lt;/p&gt;
+&lt;h3&gt;1.2 Why extract and analyze it?&lt;/h3&gt;
+&lt;p&gt;Accessing the firmware provides complete visibility into what the device is actually doing—far beyond what the user interface exposes. Analyzing it can help identify the technologies in use (OS, libraries, protocols), how network connections are handled, and whether debugging or admin interfaces (e.g., Telnet, UART, root access via SSH) are left open.&lt;/p&gt;
+&lt;h2&gt;2. Identifying and Analyzing UART / JTAG Ports&lt;/h2&gt;
+&lt;p&gt;One of the main challenges in identifying debug ports is the lack of standardization.
+JTAG ports, for example, are notoriously inconsistent, as can be seen on &lt;a href=&quot;http://www.jtagtest.com/pinouts/&quot;&gt;jtagtest&lt;/a&gt;. None of the reference layouts match the connector found on this board.&lt;/p&gt;
+&lt;p&gt;That suggests JTAG might not be used here.&lt;/p&gt;
+&lt;p&gt;In contrast, images of UART ports look very similar to what’s present on this device.&lt;/p&gt;
+&lt;p&gt;To confirm, a multimeter is used in three modes:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Continuity&lt;/li&gt;
+&lt;li&gt;Voltage&lt;/li&gt;
+&lt;li&gt;Resistance&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;It can be helpful to fill out a table like this one to record and compare results:&lt;/p&gt;
+&lt;p&gt;| PIN | RGND | RVCC | V   | Comments |
+| --- | --------------- | --------------- | --- | -------- |
+| 1   |                 |                 |     |          |
+| 2   |                 |                 |     |          |
+| 3   |                 |                 |     |          |
+| 4   |                 |                 |     |          |
+| 5   |                 |                 |     |          |&lt;/p&gt;
+&lt;p&gt;Legend:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;RGND: Multimeter COM probe is on ground&lt;/li&gt;
+&lt;li&gt;RVCC: Red probe is on VCC; COM is used to test the pins&lt;/li&gt;
+&lt;li&gt;V: Voltage measurement while the board is powered&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Even though the Silvercrest board has its pins labeled on the back side, we’ll rely on multimeter testing here—as many boards don’t label their debug ports at all.&lt;/p&gt;
+&lt;h3&gt;2.1 Resistance Testing&lt;/h3&gt;
+&lt;p&gt;One advantage of this method is that the board doesn&apos;t need to be powered, so there&apos;s no electrical risk.
+To measure resistance, set the multimeter to ohm mode:&lt;/p&gt;
+&lt;p&gt;To probe ground:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Identify a GND pin from the datasheet of any known component&lt;/li&gt;
+&lt;li&gt;Or use a grounded metal part, like the shielding of an Ethernet port.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;On the SoC, pin 17 is GND, but due to its tiny pitch, it’s easier to use the Zigbee module:&lt;/p&gt;
+&lt;p&gt;After realizing the error, I used the Ethernet port shield as a known ground reference.&lt;/p&gt;
+&lt;p&gt;Updated measurements:&lt;/p&gt;
+&lt;p&gt;| PIN | RGND | RVCC | V   | Comments |
+| --- | --------------- | --------------- | --- | -------- |
+| 1   | ∞ N/A           | N/A             |     |          |
+| 2   | ∞ N/A           | N/A             |     |          |
+| 3   | 37.3kΩ          | 10kΩ            |     | RX ?     |
+| 4   | 170kΩ           | ∞Ω              |     | TX ?     |
+| 5   | 0Ω              | 23.6Ω           |     | GND ?    |
+| 6   | 27kΩ            | 0kΩ             |     | VCC ?    |&lt;/p&gt;
+&lt;p&gt;Initial hypothesis:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;3: RX&lt;/li&gt;
+&lt;li&gt;4: TX&lt;/li&gt;
+&lt;li&gt;5: GND&lt;/li&gt;
+&lt;li&gt;6: VCC&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3&gt;2.2 Voltage Testing&lt;/h3&gt;
+&lt;p&gt;For this, the board must be powered and set the multimeter to voltage mode:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;Then place the COM probe on ground, and the red probe on each pin as shown:&lt;/p&gt;
+&lt;p&gt;Updated table with voltages:&lt;/p&gt;
+&lt;p&gt;| PIN | RGND | RVCC | V     | Comments |
+| --- | --------------- | --------------- | ----- | -------- |
+| 1   | ∞ N/A           | N/A             | 0v    |          |
+| 2   | ∞ N/A           | N/A             | 3.28v |          |
+| 3   | 37.3kΩ          | 10kΩ            | 2.93v | RX ?     |
+| 4   | 170Ω            | ∞Ω              | 3.3v  | TX ?     |
+| 5   | 0Ω              | 23.6Ω           | 0v    | GND      |
+| 6   | 27kΩ            | 0kΩ             | 3.3v  | VCC      |&lt;/p&gt;
+&lt;p&gt;The last step is to measure activity during boot. This requires disconnecting and reconnecting power while probing the pins. Pin 4 showed voltage fluctuations between 1.7 V and 3.3 V during boot—typical behavior of a TX line sending boot logs over UART.&lt;/p&gt;
+&lt;p&gt;For more on this method, see the video by &lt;a href=&quot;https://www.youtube.com/watch?v=6_Q663YkyXE&amp;#x26;list=PLoFdAHrZtKkhcd9k8ZcR4th8Q8PNOx7iU&amp;#x26;index=2&quot;&gt;Make Me Hack&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Continuity mode is not discussed here, as RX was not conclusively identified. For a complete guide on that, see: : &lt;a href=&quot;https://www.hardbreak.wiki/hardware-hacking/interface-interaction/uart/uart-from-start-to-finish&quot;&gt;HardBreak – UART from Start to Finish&lt;/a&gt;.&lt;/p&gt;
+&lt;h3&gt;2.3 Logic Analyzer&lt;/h3&gt;
+&lt;p&gt;Once candidate pins are identified, a &lt;strong&gt;logic analyzer&lt;/strong&gt; can be used to visually confirm UART signals, especially TX activity.&lt;/p&gt;
+&lt;p&gt;You don’t need expensive gear like a Saleae. A cheap Chinese clone based on the &lt;strong&gt;CY7C68013A&lt;/strong&gt; chip works perfectly for 3.3V UART:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;To capture UART data:&lt;/p&gt;
+&lt;p&gt;{/* prettier-ignore */}
+&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;
+&lt;p&gt;Connect Dupont wires&lt;/p&gt;
+&lt;p&gt;Suspected &lt;strong&gt;TX&lt;/strong&gt; pin&lt;/p&gt;
+&lt;p&gt;Suspected &lt;strong&gt;RX&lt;/strong&gt; pin (optional if the objective is solely observe&lt;strong&gt;TX&lt;/strong&gt;)&lt;/p&gt;
+&lt;p&gt;Optional but recommended: common &lt;strong&gt;GND&lt;/strong&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Launch PulseView&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Hit &quot;Run&quot; &lt;strong&gt;just before powering the board&lt;/strong&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;The full setup looks like:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;At power-on, the TX line (&lt;code&gt;D1&lt;/code&gt;) shows visible UART frames:&lt;/p&gt;
+&lt;p&gt;PulseView&apos;s channels are labeled &lt;code&gt;D0&lt;/code&gt; to &lt;code&gt;D7&lt;/code&gt;, while the analyzer itself may label them &lt;code&gt;CH1&lt;/code&gt; to &lt;code&gt;CH8&lt;/code&gt;.
+La correspondance entre deux est:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;CH1 -&gt; D0&lt;/li&gt;
+&lt;li&gt;CH8 -&gt; D7&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;In the example above, &lt;code&gt;D1&lt;/code&gt; shows typical UART activity.
+By enabling &lt;strong&gt;UART serial decoding&lt;/strong&gt;, PulseView can reveal:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Baud rate&lt;/strong&gt; (e.g, 38400)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Format&lt;/strong&gt; : 8 bits, 1 stop bit, no parity (8N1)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The correct baud rate was found by manually trying common embedded values until readable output appeared:&lt;/p&gt;
+&lt;p&gt;So far, only a &lt;strong&gt;quick signal validation&lt;/strong&gt; was done to confirm &lt;code&gt;D1&lt;/code&gt; is TX. Full protocol decoding will come later if needed.&lt;/p&gt;
+&lt;h2&gt;3. Initial UART Communication Tests&lt;/h2&gt;
+&lt;p&gt;Even though the UART baud rate was identified using the logic analyzer, it&apos;s worth remembering that a limited set of common baud rates is typically used. Here&apos;s a &lt;strong&gt;Top 6&lt;/strong&gt; list of the most frequently encountered baud rates:&lt;/p&gt;
+&lt;p&gt;| Rank | Baud rate (bps) | Comments                                           |
+| ---- | --------------- | -------------------------------------------------- |
+| 1    | &lt;strong&gt;9600&lt;/strong&gt;        | The most universal default across devices          |
+| 2    | &lt;strong&gt;115200&lt;/strong&gt;      | Very popular for fast serial debugging             |
+| 3    | &lt;strong&gt;38400&lt;/strong&gt;       | Common in industry, Bluetooth, legacy modems       |
+| 4    | &lt;strong&gt;19200&lt;/strong&gt;       | Typical in robust embedded systems                 |
+| 5    | &lt;strong&gt;57600&lt;/strong&gt;       | Good balance, often seen in wireless devices       |
+| 6    | &lt;strong&gt;4800&lt;/strong&gt;        | Legacy, still used in some GPS and RS-232 hardware |&lt;/p&gt;
+&lt;p&gt;It’s common to try each of these baud rates when testing unknown devices. If the selected rate is incorrect, you’ll typically see unreadable garbage output on the terminal.&lt;/p&gt;
+&lt;p&gt;To interface with the UART port, several tools can be used:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;USB-to-TTL serial adapters&lt;/li&gt;
+&lt;li&gt;Board like Hydrabus, Glasgow, Tigard&lt;/li&gt;
+&lt;li&gt;Dev boards like Bluepill or FTDI-based ones&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;In this case, a USB-to-TTL adapter is used. It usually features 5 or 6 pins and looks like this:&lt;/p&gt;
+&lt;p&gt;As with the logic analyzer, connect Dupont wires to the &lt;code&gt;RX&lt;/code&gt;, &lt;code&gt;TX&lt;/code&gt;, and &lt;code&gt;GND&lt;/code&gt; pins. You don’t need to connect &lt;code&gt;VCC&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;After wiring everything correctly, the setup should look like this:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;Once the USB-to-TTL adapter is plugged into your computer, you can verify that it was detected using &lt;code&gt;dmesg&lt;/code&gt; (on Linux):&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;$ dmesg
+
+usb 1-11.1.2.4: new full-speed USB device number 59 using xhci_hcd
+usb 1-11.1.2.4: New USB device found, idVendor=10c4, idProduct=ea60, bcdDevice= 1.00
+usb 1-11.1.2.4: New USB device strings: Mfr=1, Product=2, SerialNumber=3
+usb 1-11.1.2.4: Product: CP2102 USB to UART Bridge Controller
+usb 1-11.1.2.4: Manufacturer: Silicon Labs
+usb 1-11.1.2.4: SerialNumber: 0001
+cp210x 1-11.1.2.4:1.0: cp210x converter detected
+usb 1-11.1.2.4: cp210x converter now attached to ttyUSB1
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Here, the serial port is /dev/ttyUSB1. You can connect to it using screen (or another serial terminal tool):&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;screen /dev/ttyUSB1 38400
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Once the device is powered on, you should see boot messages appear:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;As shown above, the system boots, and you can read the startup messages through the USB-to-TTL adapter.
+At the end of the output, a login prompt appears. Without valid credentials, it’s not possible to proceed further for now. These credentials might be found later in the firmware or memory dump.&lt;/p&gt;
+&lt;p&gt;Reminder: If the wrong baud rate is selected, the output will be garbled or unreadable.
+Example with an incorrect rate:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;screen /dev/ttyUSB1 115200
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;h2&gt;4. UART Message Analysis&lt;/h2&gt;
+&lt;p&gt;This section analyzes the messages retrieved via UART. The goal is to extract key information and understand how to leverage it during the firmware extraction phase.&lt;/p&gt;
+&lt;h3&gt;4.1 Detected Hardware Information&lt;/h3&gt;
+&lt;p&gt;Right from the initial boot sequence, several hardware details are displayed:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;In red&lt;/strong&gt;: 32 MB of DDR1 memory detected&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;In blue&lt;/strong&gt;: SoC &lt;code&gt;RTL8196E&lt;/code&gt;, running at 380 MHz&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;In green&lt;/strong&gt;: Ethernet port 0 uses the SoC’s internal PHY transceiver — no external chip is present.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Further down, the system prints memory address mappings:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;Then, the flash memory version and characteristics (SPI flash) are revealed:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;Finally, the partition table — a &lt;strong&gt;critical piece of information&lt;/strong&gt; — lists key memory areas:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;h3&gt;4.2 Memory Technology Device (MTD) Partition Structure&lt;/h3&gt;
+&lt;p&gt;During boot, the MTD partition table describes how the flash memory (in this case, a GD25Q128 16 MB chip) is segmented:&lt;/p&gt;
+&lt;p&gt;| Partition      | Offset     | Size     | Name       |
+| -------------- | ---------- | -------- | ---------- |
+| boot+cfg       | 0x00000000 | 0x20000  | boot+cfg   |
+| kernel / linux | 0x00020000 | 0x1e0000 | linux      |
+| rootfs         | 0x00200000 | 0x200000 | rootfs     |
+| tuya-label     | 0x00400000 | 0x20000  | tuya-label |
+| jffs2-fs       | 0x00420000 | 0xbe0000 | jffs2-fs   |&lt;/p&gt;
+&lt;p&gt;This layout gives useful clues for firmware extraction. For example, the &lt;code&gt;tuya-label&lt;/code&gt; partition likely contains manufacturer-specific metadata. Knowing its offset and size allows for targeted extraction, without needing to dump the entire flash.
+These memory mappings will be helpful when reconstructing the full firmware image or analyzing partitions individually.&lt;/p&gt;
+&lt;h3&gt;4.3 Operating System Details&lt;/h3&gt;
+&lt;p&gt;The boot log also reveals key OS information:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Linux version :
+&lt;pre&gt;&lt;code&gt;Linux version 3.10.90 (zhangpc@embed) (gcc version 4.6.4 (Realtek RSDK-4.6.4 Build 2080) ) #1 Thu Jul 29 21:36:28 CST 2021
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/li&gt;
+&lt;li&gt;BusyBox version:
+&lt;pre&gt;&lt;code&gt;BusyBox v1.13.4 (2021-07-29 21:31:51 CST)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/li&gt;
+&lt;li&gt;Root filesystem : &lt;code&gt;squashfs&lt;/code&gt; (read-only)
+&lt;pre&gt;&lt;code&gt;VFS: Mounted root (squashfs filesystem) readonly on device 31:2.
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/li&gt;
+&lt;li&gt;Auto-execution of &lt;code&gt;/tuya/tuya_start.sh&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Network interface initialization (&lt;code&gt;eth0&lt;/code&gt;, &lt;code&gt;eth1&lt;/code&gt;, &lt;code&gt;peth0&lt;/code&gt;)&lt;/li&gt;
+&lt;li&gt;DHCP client startup via &lt;code&gt;udhcpc&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3&gt;4.4 Tuya-Specific Indicators&lt;/h3&gt;
+&lt;p&gt;Although the Smart Home gateway is sold under the LIDL brand, no explicit mention of LIDL appears in the logs. However, several hints point to Tuya as the true manufacturer&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Custom scripts like (&lt;code&gt;tuya_start_children.sh&lt;/code&gt;)&lt;/li&gt;
+&lt;li&gt;User directory &lt;code&gt;/tuya/tuya_user1&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Environment variable &lt;code&gt;TY_ENV_APP_RUN_DIR&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Default configuration file &lt;code&gt;/tuya/def.cfg&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;It is likely that LIDL simply rebranded a Tuya device without modifying the firmware. This suggests that many similar Zigbee gateways — even across different brands — may share the same hardware and software base.&lt;/p&gt;
+&lt;h2&gt;5. &lt;strong&gt;Preparing for Firmware Extraction&lt;/strong&gt;&lt;/h2&gt;
+&lt;h3&gt;5.1 Recap of Collected Information&lt;/h3&gt;
+&lt;p&gt;With the partition table obtained earlier, it&apos;s worth revisiting the objective of this stage: extracting the firmware.
+Ideally, we want to extract everything to ensure that no critical information is missed.&lt;/p&gt;
+&lt;p&gt;However, doing a full dump over UART at only 38400 baud would take hours.
+For this reason, we’ll begin by extracting just the tuya-label partition. Reminder:&lt;/p&gt;
+&lt;p&gt;| Partition  | Offset     | Size    | Name       |
+| ---------- | ---------- | ------- | ---------- |
+| tuya-label | 0x00400000 | 0x20000 | tuya-label |&lt;/p&gt;
+&lt;p&gt;But how can we extract memory contents? That’s what the next section explains.&lt;/p&gt;
+&lt;h3&gt;5.2 Possible Extraction Methods&lt;/h3&gt;
+&lt;p&gt;Reading the content of an SPI flash memory can be done in several ways, depending on physical access to the chip, available interfaces, and implemented protections.
+Each method has its pros, cons, and requirements.&lt;/p&gt;
+&lt;h4&gt;5.2.1 Extraction via UART / Serial Console (Bootloader)&lt;/h4&gt;
+&lt;p&gt;Some embedded systems include an interactive bootloader (like &lt;strong&gt;U-Boot&lt;/strong&gt;) accessible via UART. In certain cases, this bootloader allows:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Dumping memory&lt;/strong&gt; (using commands like &lt;code&gt;md&lt;/code&gt;, &lt;code&gt;dump&lt;/code&gt;, etc.)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Loading firmware&lt;/strong&gt; or scripts from external sources&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Redirecting memory content&lt;/strong&gt; to the serial terminal&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;✔️ &lt;strong&gt;Pros&lt;/strong&gt;:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Non-intrusive&lt;/strong&gt; method (no soldering)&lt;/li&gt;
+&lt;li&gt;Requires only a USB-to-UART adapter&lt;/li&gt;
+&lt;li&gt;Often safer and more convenient than physical dumping&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;❌ &lt;strong&gt;Cons&lt;/strong&gt;:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Not all systems &lt;strong&gt;expose&lt;/strong&gt; the bootloader&lt;/li&gt;
+&lt;li&gt;The bootloader may be &lt;strong&gt;locked down&lt;/strong&gt; (no prompt, limited commands)&lt;/li&gt;
+&lt;li&gt;The UART port might be disabled or protected&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;For the Silvercrest gateway, this method is &lt;strong&gt;applicable&lt;/strong&gt;.&lt;/p&gt;
+&lt;h4&gt;5.2.2 For the Silvercrest gateway, this method is applicable.Extraction via JTAG / SWD&lt;/h4&gt;
+&lt;p&gt;JTAG (or SWD for ARM microcontrollers) is a low-level debugging interface that enables:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Direct access to RAM and flash&lt;/li&gt;
+&lt;li&gt;Full CPU control&lt;/li&gt;
+&lt;li&gt;Firmware dumping or code injection&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;✔️ &lt;strong&gt;Pros&lt;/strong&gt;:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Full system access&lt;/strong&gt;, even with some firmware protections&lt;/li&gt;
+&lt;li&gt;Can work even if UART is not available&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;❌ &lt;strong&gt;Cons&lt;/strong&gt;:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Not all boards have &lt;strong&gt;exposed or active JTAG pins&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;Pads may be unpopulated or disabled&lt;/li&gt;
+&lt;li&gt;Requires &lt;strong&gt;specialized hardware&lt;/strong&gt; (JTAGulator, OpenOCD, STLink...) and advanced knowledge&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Requires specialized hardware (JTAGulator, OpenOCD, STLink...) and advanced knowledge&lt;/p&gt;
+&lt;p&gt;Test pads labeled &lt;strong&gt;SWDIO&lt;/strong&gt; and &lt;strong&gt;SWCLK&lt;/strong&gt; are available on the PCB but are connected to the Zigbee chip.
+Thus, they only allow debugging that component — not the main SoC.&lt;/p&gt;
+&lt;p&gt;Still, out of curiosity, here&apos;s how to test it using STLink and pyOCD:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;$ pyocd pack install EFR32MG1B232F256GM48
+$ pyocd commander --target EFR32MG1B232F256GM48
+$ pyocd&gt; rw 0xE000ED00 4
+e000ed00:  410fc241
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The address &lt;code&gt;0xE000ED00&lt;/code&gt; is a fixed register (&lt;code&gt;CPUID&lt;/code&gt;) in all ARM Cortex-M CPUs.
+Now that the returned value looks valid, we can dump the firmware:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;pyocd cmd --target EFR32MG1B232F256GM48  -c &quot;savemem 0 0x40000 fimware_zigbee.bin&quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Verify the dump:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;strings firmware_zigbee.bin |grep -i zigbee
+
+F:/siliconlabs/install_dir/developer/sdks/gecko_sdk_suite/v2.5/protocol/zigbee/app/em260/serial-interface-uart.c
+ZigBeeAlliance091821
+ZigBeeAlliance09
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h4&gt;5.2.3 Physical Extraction via SPI Flash&lt;/h4&gt;
+&lt;p&gt;Another option is to read the SPI flash chip directly using a flash programmer.
+Two main approaches:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;In-circuit read&lt;/strong&gt; using a SOIC clip
+&lt;ul&gt;
+&lt;li&gt;Allows to &lt;strong&gt;read the chip without desoldering it&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;NécesRequires a &lt;strong&gt;SOIC-8 clip&lt;/strong&gt; and a programmer (e.g. CH341A, FlashcatUSB, Hydrabus)&lt;/li&gt;
+&lt;li&gt;Ensure the chip is &lt;strong&gt;not powered by the PCB&lt;/strong&gt; during the read&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;Desolder and read off-board
+&lt;ul&gt;
+&lt;li&gt;Requires &lt;strong&gt;desoldering&lt;/strong&gt; the flash chip&lt;/li&gt;
+&lt;li&gt;Chip is read using a dedicated adapter&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;✔️ &lt;strong&gt;Pros&lt;/strong&gt;:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Direct, reliable&lt;/strong&gt; methodCons&lt;/li&gt;
+&lt;li&gt;Full access to the raw firmware image&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;❌ &lt;strong&gt;Cons&lt;/strong&gt;:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Requires &lt;strong&gt;specific tools&lt;/strong&gt; (programmer, clip, soldering iron…)&lt;/li&gt;
+&lt;li&gt;Risk of damaging the chip or PCB pads&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;In the Silvercrest gateway case, this method is also applicable.&lt;/p&gt;
+&lt;h3&gt;5.3 Extraction implementation&lt;/h3&gt;
+&lt;h4&gt;5.3.1 Extraction Via UART&lt;/h4&gt;
+&lt;h5&gt;5.3.1.1 Hardware Setup&lt;/h5&gt;
+&lt;p&gt;Requirements:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;USB-to-TTL adapter&lt;/li&gt;
+&lt;li&gt;Baud rate: 38400&lt;/li&gt;
+&lt;li&gt;Terminal application&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;As discussed earlier, 38400 is quite slow. Testing higher baud rates revealed that none worked in this case — the system accepts only 38400.&lt;/p&gt;
+&lt;h5&gt;5.3.1.2 Boot Access and Data Dump&lt;/h5&gt;
+&lt;p&gt;peed is essential. Upon power-up, pressing Esc quickly interrupts the Realtek bootloader and opens the command prompt:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;Bootloader command list:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;Useful commands:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;FLR&lt;/code&gt;: Flash Read&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;DW&lt;/code&gt;: Dump Word&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;tftp&lt;/code&gt;: pour charger un firmware depuis le réseau&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;We&apos;ll extract the &lt;code&gt;tuya-label&lt;/code&gt; partition:&lt;/p&gt;
+&lt;p&gt;| Partition  | Offset     | Size    | Name       |
+| ---------- | ---------- | ------- | ---------- |
+| tuya-label | 0x00400000 | 0x20000 | tuya-label |&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;# Read flash into RAM
+FLR 0x80000000 0x00400000 0x20000
+
+# Dump RAM content
+DW 0x80000000 131072
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The &lt;code&gt;DW&lt;/code&gt; output looks like:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;Due to the data size, automation is necessary. The pyserial Python library makes scripting easy. A great starting point is Paul Banks’ script: &lt;a href=&quot;https://github.com/banksy-git/lidl-gateway-freedom/blob/master/scripts/dump_flash.py&quot;&gt;dump_flash.py&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;The first dump shows human-readable strings:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-zsh&quot;&gt;$ strings /tmp/tuya-label.bin                                                                      
+
+r6&apos;0-*9i?0orWl&apos;x
+N}$u^
+cc8cbfac1265
+HMGW22210014666
+Gateway-type c
+Lidl Digital International
+HG09101
+HMGW22210014666
+04da2d02c69eedfd
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;At first glance, no directly exploitable information like credentials or keys.
+Subsequently, each partition was extracted using the following commands, with the start and end addresses corresponding to the partition offsets identified in the partition table obtained earlier.&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;$ python dump_flash.py --start-addr 0x0 --end-addr 0x20000 --output-file ./boot.bin --serial-port /dev/ttyUSB0
+$ python dump_flash.py --start-addr 0x420000 --end-addr 0x1000000 --output-file ./jffs2-fs.bin --serial-port /dev/ttyUSB0
+$ python dump_flash.py --start-addr 0x20000 --end-addr 0x200000 --output-file ./linux.bin --serial-port /dev/ttyUSB0
+$ python dump_flash.py --start-addr 0x200000 --end-addr 0x400000 --output-file ./rootfs.bin --serial-port /dev/ttyUSB0
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Verify with the &lt;code&gt;file&lt;/code&gt; command:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;$ file *.bin
+boot.bin:   data
+jffs2-fs.bin:   Linux jffs2 filesystem data big endian
+linux.bin:  data
+rootfs.bin: Squashfs filesystem, little endian, version 4.0, xz compressed, 918722 bytes, 167 inodes, blocksize: 131072 bytes, created: Fri Jan 29 00:53:20 2038
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;To extract SquashFS, use &lt;code&gt;binwalk&lt;/code&gt; (preferably via Docker to avoid dependency issues):&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;sudo docker run -t -v &quot;$PWD&quot;:/analysis binwalkv3 -Me rootfs.bin
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;From there, the goal is to try to identify where the root password is located in order to connect via SSH.
+To do this, you can cheat by retrieving the digest from the “/etc/shadow” file and trying to crack it. Spoiler: Since the password is only 8 characters long, it takes quite a long time to crack it given the &lt;code&gt;descrypt&lt;/code&gt; algorithm—a little over 30 years on my computer.&lt;/p&gt;
+&lt;p&gt;But that&apos;s not “fun.” Instead, you have to try to figure out how the password is set up in Tuya.&lt;/p&gt;
+&lt;h4&gt;5.3.2 Extraction via SPI&lt;/h4&gt;
+&lt;h5&gt;&lt;strong&gt;5.3.1 Hardware Setup&lt;/strong&gt;&lt;/h5&gt;
+&lt;p&gt;L&apos;extraction nécessite:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;SPI programmer:
+&lt;ul&gt;
+&lt;li&gt;HydraBus&lt;/li&gt;
+&lt;li&gt;CH341A&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;SOIC clip&lt;/li&gt;
+&lt;li&gt;Dupont wire&lt;/li&gt;
+&lt;li&gt;Universal Chip IC Clamp&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h5&gt;&lt;strong&gt;5.3.2 Wiring and Precautions&lt;/strong&gt;&lt;/h5&gt;
+&lt;p&gt;Check the flash chip’s datasheet to confirm correct pinout:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;{/* prettier-ignore */}&lt;/p&gt;
+&lt;p&gt;Extraction can be attempted with:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;CH341A + SOIC clip&lt;/li&gt;
+&lt;li&gt;HydraBus + IC clamp + Dupont cables&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;{/* prettier-ignore */}&lt;/p&gt;
+&lt;p&gt;{/* prettier-ignore */}&lt;/p&gt;
+&lt;p&gt;Due to this, HydraBus was used for the rest of the extraction&lt;/p&gt;
+&lt;p&gt;To connect the flash memory correctly to the Hydrabus, you need to identify the right pins. There are two solutions:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Check the GitHub repository
+&lt;img src=&quot;https://raw.githubusercontent.com/hydrabus/hydrafw/refs/heads/master/HydraFW_Default_PinAssignment.jpg&quot; alt=&quot;Hydrabus Pin&quot;&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Connect to HydraBus and run:&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;screen /dev/ttyACM0
+
+&gt; spi
+spi1&gt; show pins
+CS:   PA15
+SCK:  PB3
+MISO: PB4
+MOSI: PB5
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;This gives the following correspondence:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;Here is the wiring diagram between the Hydrabus and the flash memory:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;And, for those who are curious, here&apos;s what it looks like in practice:&lt;/p&gt;
+&lt;p&gt;
+It is now possible to extract the firmware. If you are luckier than me, the &lt;code&gt;flashrom&lt;/code&gt; tool may
+suffice:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;flashrom -p serprog:dev=/dev/ttyACM0 -r hydradump.bin
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;This didn’t work. Instead, the native HydraBus firmware features were used:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;screen /dev/ttyACM0
+&gt; spi
+spi1&gt; [ 0x9F r:3 ]
+/CS ENABLED
+WRITE: 0x9F
+READ: 0xC8 0x40 0x18
+/CS DISABLED
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;By consulting the &lt;strong&gt;memory datasheet&lt;/strong&gt;, it is possible to determine that this command corresponds to:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;Expected output matches the HydraBus response:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;SPI communication is confirmed!
+The next step is to read the entire contents of the memory. Also in the datasheet, we find the &lt;code&gt;Read Data&lt;/code&gt; command:&lt;/p&gt;
+&lt;p&gt;Details:&lt;/p&gt;
+&lt;p&gt;
+Without going into detail (perhaps in a future article!), the diagram shows how to send this command
+with Hydrabus:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;# Read 3 bytes from address 0
+[ 0x03 0x00:3 ]
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Manual full read would be tedious — so let’s use the &lt;code&gt;pyHydrabus&lt;/code&gt; Python bindings.&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-python&quot;&gt;import pyHydrabus
+
+MAX_CHUNK = 4096
+
+def get_edecid(hb):
+    id_bytes = hb.write_read(b&quot;\x9f&quot;, 3)
+    print(&quot;JEDEC ID:&quot;, id_bytes.hex())
+
+def read_flash_full(hb, size=16 * 1024 * 1024):
+    data = bytearray()
+    for addr in range(0, size, MAX_CHUNK):
+        to_read = min(MAX_CHUNK, size - addr)
+        cmd = bytes(
+            [
+                0x03,
+                (addr &gt;&gt; 16) &amp;#x26; 0xFF,
+                (addr &gt;&gt; 8) &amp;#x26; 0xFF,
+                addr &amp;#x26; 0xFF,
+            ]
+        )
+        chunk = hb.write_read(cmd, to_read)
+        data.extend(chunk)
+        print(f&quot;Read {len(chunk)} bytes from 0x{addr:06X}&quot;)
+
+    return bytes(data)
+
+if __name__ == &quot;__main__&quot;:
+	hb = pyHydrabus.SPI()
+	hb.set_speed(hb.SPI1_SPEED_10M)
+
+	get_edecid(hb)
+
+	data = read_flash_full(hb)
+	with open(&quot;hydradump.bin&quot;, &quot;wb&quot;) as f:
+	    f.write(data)
+
+	hb.close()
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Check the result using &lt;code&gt;binwalk&lt;/code&gt;:&lt;/p&gt;
+&lt;p&gt;
+The flash memory was successfully extracted, and much more quickly than with the
+&lt;a href=&quot;#531-extraction-via-uart&quot;&gt;UART&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;Here, it took less than a minute, compared to several hours with other methods:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;python dump_flash.py
+0,05s user 0,09s system 0% cpu 51,720 total
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h2&gt;6. Conclusion&lt;/h2&gt;
+&lt;p&gt;This article covered three methods to extract firmware content:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;UART&lt;/li&gt;
+&lt;li&gt;SPI&lt;/li&gt;
+&lt;li&gt;JTAG&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Despite various issues encountered, it was possible to successfully extract the firmware without too much trouble.
+The next article will focus on analyzing the recovered firmware and how to retrieve the &lt;code&gt;root&lt;/code&gt; password for authentication.&lt;/p&gt;
+&lt;h2&gt;Ressources&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;https://www.youtube.com/watch?v=6_Q663YkyXE&amp;#x26;list=PLoFdAHrZtKkhcd9k8ZcR4th8Q8PNOx7iU&amp;#x26;index=2&quot;&gt;Make Me Hack&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://www.hardbreak.wiki/hardware-hacking/interface-interaction/uart/uart-from-start-to-finish&quot;&gt;HardBreak&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://lucidar.me/fr/serialib/most-used-baud-rates-table/&quot;&gt;Lucidar.me&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://learn.sparkfun.com/tutorials/serial-communication&quot;&gt;sparkfun&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://github.com/ReFirmLabs/binwalk/wiki&quot;&gt;binwalk&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;</content:encoded><h:img src="undefined"/><enclosure url="undefined"/></item><item><title>[Silvercrest Smart Home] Hardware Analysis of the Gateway</title><link>https://0xnyaru.github.io/blog/silvercrest-zigbee-gateway/00---hardware-analysis-of-the-gateway</link><guid isPermaLink="true">https://0xnyaru.github.io/blog/silvercrest-zigbee-gateway/00---hardware-analysis-of-the-gateway</guid><description>Introduction to hardware hacking</description><pubDate>Mon, 04 Aug 2025 23:06:36 GMT</pubDate><content:encoded>&lt;p&gt;import { Image } from &apos;astro:assets&apos;
+import read_sequence_diagram_25Q128ESIG from &apos;images/00/25Q128ESIG-read-sequence-diagram.png&apos;
+import board_back from &apos;images/00/board_back.png&apos;
+import board_front from &apos;images/00/board_front.png&apos;
+import debug_port_back from &apos;images/00/debug_port_back.png&apos;
+import debug_port from &apos;images/00/debug_port.png&apos;
+import full_product from &apos;images/00/full_product.png&apos;
+import rtl8196E_pin_assignments from &apos;images/00/rtl8196E-pin-assignments.png&apos;&lt;/p&gt;
+&lt;p&gt;import { Aside } from &apos;astro-pure/user&apos;&lt;/p&gt;
+&lt;h2&gt;1. Introduction&lt;/h2&gt;
+&lt;p&gt;As an introduction to IoT and hardware security auditing, a simple device was selected to gain hands-on experience: the &lt;code&gt;LIDL Silvercrest Smart Home Gateway&lt;/code&gt;.
+The advantages of this product are:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Its cost: around €20, making it a low-risk target in case of damage&lt;/li&gt;
+&lt;li&gt;It includes wireless communication via Zigbee, Ethernet support, and a mobile application&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Initial research revealed that this device had already been analyzed by others. Their work is acknowledged and referenced below&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;https://paulbanks.org/projects/lidl-zigbee/root/&quot;&gt;Paul Banks&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://faire-ca-soi-meme.fr/domotique/2021/03/22/hack-detournement-de-la-passerelle-lidl-silvercrest/&quot;&gt;Fais ça toi même&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://github.com/odolezal/silvercrest_zigbee_gateway&quot;&gt;odolezal&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://zigbee.blakadder.com/Lidl_TYGWZ-01.html&quot;&gt;blackadder&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://github.com/jnilo1/hacking-lidl-silvercrest-gateway&quot;&gt;jnilo1&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;This analysis takes a slightly different, more security-oriented and educational approach, enabling reproducibility and understanding of how key information is identified.&lt;/p&gt;
+&lt;p&gt;I couldn&apos;t find any articles explaining how the memory addresses were found, which made me even more eager to share.&lt;/p&gt;
+&lt;h2&gt;2. Disassembly&lt;/h2&gt;
+&lt;p&gt;Once unboxed, the device (already opened at the time of writing) reveals the following internal layout:&lt;/p&gt;
+&lt;p&gt;The first step is to open the enclosure. No screws are present, so disassembly requires careful prying using tools such as:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;A screwdriver&lt;/li&gt;
+&lt;li&gt;A plastic spudger or guitar pick&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;After several failed attempts with the pick (which broke), the screwdriver proved to be more effective. The following PCB was removed from the casing:&lt;/p&gt;
+&lt;p&gt;And the reverse side of the PCB:&lt;/p&gt;
+&lt;h2&gt;3. Component Identification&lt;/h2&gt;
+&lt;p&gt;With the board accessible, key components can be identified and analyzed in order to understand their roles, functionality, and communication methods. The photos above reveal at least 3 to 5 interesting components:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;RTL8196E – Likely the main CPU&lt;/li&gt;
+&lt;li&gt;ESMT M13S2561616A – Resembles RAM&lt;/li&gt;
+&lt;li&gt;TYZS4 – With an antenna, presumably the Zigbee module&lt;/li&gt;
+&lt;li&gt;FPE H17107DF-R&lt;/li&gt;
+&lt;li&gt;GigaDevice 25Q128ESIG – Likely a serial SPI flash memory&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Once these part numbers are noted, the next step is to find technical documentation (datasheets). The following methods help locate such information:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Google searches&lt;/li&gt;
+&lt;li&gt;Searching supplier sites like DigiKey or Mouser&lt;/li&gt;
+&lt;li&gt;Tools like ChatGPT&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Below is the list of datasheets&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;https://www.alldatasheet.com/datasheet-pdf/pdf/1315416/REALTEK/RTL8196E-CG.html&quot;&gt;RTL8196E&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://www.alldatasheet.com/datasheet-pdf/pdf/204934/ESMT/M13S2561616A.html&quot;&gt;M13S2561616A&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://datasheet4u.com/datasheet/FPE/H16107DF-R-835915&quot;&gt;FPE H17107DF-R&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://www.mouser.fr/ProductDetail/GigaDevice/GD25Q128ESIG?qs=GedFDFLaBXFEuN8evEkMrw%3D%3D&quot;&gt;GigaDevice 25Q128ESIG&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://developer.tuya.com/en/docs/iot/zigbeetyzs4module?id=K989rhycrz23f&quot;&gt;TYZS4&lt;/a&gt;, &lt;a href=&quot;https://fccid.io/2ANDL-TYZS4&quot;&gt;RoHS-fccid&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Additional analysis reveals potential debug or UART ports near the Zigbee module.&lt;/p&gt;
+&lt;h3&gt;3.1 Component Analysis&lt;/h3&gt;
+&lt;p&gt;After reviewing the various datasheets, the &lt;code&gt;FPE H17107&lt;/code&gt; component can be ruled out, as its role is related to Ethernet — which is of no further interest for this analysis.&lt;/p&gt;
+&lt;h4&gt;3.1.1 RTL8196E&lt;/h4&gt;
+&lt;p&gt;Although the documentation dates from 2012, it remains relevant. Section 2 outlines:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;SOC
+&lt;ul&gt;
+&lt;li&gt;RLX4181 embedded RISC CPU (MIPS-based)&lt;/li&gt;
+&lt;li&gt;400 MHz clock speed&lt;/li&gt;
+&lt;li&gt;EJTAG test ports&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;Support for 2 UARTs and GPIO&lt;/li&gt;
+&lt;li&gt;Memory
+&lt;ul&gt;
+&lt;li&gt;SPI flash boot (256K to 16M)&lt;/li&gt;
+&lt;li&gt;External RAM support&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Section &lt;code&gt;5. Pin Assignments&lt;/code&gt; details pin assignments:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;Special attention is given to pins such as &lt;code&gt;JTAG&lt;/code&gt;, &lt;code&gt;U0_RX&lt;/code&gt;, and &lt;code&gt;U0_TX&lt;/code&gt;, which could enable debugging or data extraction.
+Other relevant data includes:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Voltage requirements&lt;/li&gt;
+&lt;li&gt;Clock frequencies&lt;/li&gt;
+&lt;li&gt;Memory mapping&lt;/li&gt;
+&lt;li&gt;Signal formats and UART framing&lt;/li&gt;
+&lt;li&gt;Start/stop bits&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;This information is especially useful when working with a logic analyzer.&lt;/p&gt;
+&lt;h4&gt;3.1.2 M13S2561616A&lt;/h4&gt;
+&lt;p&gt;As initially suspected, this is a RAM chip operating at 200 MHz. The datasheet provides similar information useful for understanding how the chip functions..&lt;/p&gt;
+&lt;h4&gt;3.1.3 GigaDevice 25Q128ESIG&lt;/h4&gt;
+&lt;p&gt;Confirmed to be a serial SPI flash memory. The datasheet&apos;s &lt;code&gt;1. FEATURES&lt;/code&gt; section includes:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Write protection capabilities&lt;/li&gt;
+&lt;li&gt;Communication protocols&lt;/li&gt;
+&lt;li&gt;Endurance (write/erase cycles)&lt;/li&gt;
+&lt;li&gt;Size: 128 Mbits&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Below is a sample read sequence from the datasheet:&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;h4&gt;3.1.4 Tuya YZS4 Zigbee Module&lt;/h4&gt;
+&lt;p&gt;This is a Tuya Zigbee module. Tuya is a Chinese company specializing in &lt;strong&gt;smart home&lt;/strong&gt; and &lt;strong&gt;IoT solutions&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;The module includes:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;32-bit ARM Cortex-M4&lt;/li&gt;
+&lt;li&gt;256 KB flash memory&lt;/li&gt;
+&lt;li&gt;FreeRTOS&lt;/li&gt;
+&lt;li&gt;4 GPIOs and 1 UART&lt;/li&gt;
+&lt;li&gt;AES 128/256 and hardware encryption support&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The pinout diagram shows where to connect UART or SWDIO. Test pads on the back of the board match these pin names. Tracing the PCB tracks or using a multimeter can help confirm the connections.&lt;/p&gt;
+&lt;p&gt;According to &lt;a href=&quot;https://support.tuya.com/en/help/_detail/K9hkdfvj4vs46&quot;&gt;Tuya’s documentation&lt;/a&gt;, the UART baud rate is 115200.&lt;/p&gt;
+&lt;h4&gt;3.1.4 Debug Ports&lt;/h4&gt;
+&lt;p&gt;Potential debug ports are visible:&lt;/p&gt;
+&lt;p&gt;The proximity and alignment of the pins suggest UART or JTAG functionality. On the reverse side, labels confirm UART:&lt;/p&gt;
+&lt;p&gt;The correct baud rate for communication must be determined. Options include:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Brute-force testing common baud rates (starting from the most widely used &lt;a href=&quot;https://lucidar.me/en/serialib/what-are-the-most-used-baud-rates/&quot;&gt;values&lt;/a&gt;)&lt;/li&gt;
+&lt;li&gt;Using a logic analyzer&lt;/li&gt;
+&lt;li&gt;Consulting the SoC datasheet&lt;/li&gt;
+&lt;li&gt;Measuring the bit duration with an oscilloscope&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The UART ports identified here will be thoroughly verified during the firmware extraction phase, including RX/TX identification, voltage level checks, and baudrate configuration, to ensure reliable communication.&lt;/p&gt;
+&lt;h2&gt;4. Conclusion&lt;/h2&gt;
+&lt;p&gt;This first phase provided an overview of the internal architecture and identified key components of the device.&lt;/p&gt;
+&lt;p&gt;Initial attack vectors that can be considered include:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Is the debug port enabled, and what access does it allow?&lt;/li&gt;
+&lt;li&gt;Can the SPI flash be directly accessed and dumped?&lt;/li&gt;
+&lt;li&gt;Is it possible to interface with the RAM?&lt;/li&gt;
+&lt;li&gt;What can be observed by connecting to the Zigbee module via UART?&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;These questions will not all be answered in this series, depending on tooling availability, technical constraints, or limited added value compared to other available approaches.&lt;/p&gt;</content:encoded><h:img src="undefined"/><enclosure url="undefined"/></item></channel></rss>
